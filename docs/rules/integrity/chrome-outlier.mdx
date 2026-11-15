@@ -5,7 +5,7 @@ description: "A few pages without the navigation, footer and stylesheets of the 
 
 ## What a chrome outlier is
 
-Chrome is the shell around a page: stylesheets, asset hosts, body classes, CSS variables, the navigation and the footer. After a redesign or a theme change, a handful of pages often stay behind on the old shell, or lose their navigation, footer or stylesheets in a bad migration. Visitors land on them from search and see a different site.
+Chrome is the shell around a page: stylesheets, CSS and script hosts, body classes, CSS variables, the navigation and the footer. After a redesign or a theme change, a handful of pages often stay behind on the old shell, or lose their navigation, footer or stylesheets in a bad migration. Visitors land on them from search and see a different site.
 
 This is a design consistency check. It asks whether a page was left behind, not whether it was planted, which is the question [template discontinuity](/rules/integrity/template-discontinuity) answers.
 
@@ -13,12 +13,12 @@ This is a design consistency check. It asks whether a page was left behind, not 
 
 The rule is site-wide. It groups every successful (2xx) page by its template fingerprint, the same key stored for each page during the crawl. The largest group is the site's template. When that group covers at least `minAgreement` of the pages, a page in a small group (`maxClusterPages` pages or fewer, singletons included) is a straggler when it lacks part of the site template:
 
-- one of the template's stylesheets,
-- one of its asset hosts,
-- its navigation, or
-- its footer.
+- its navigation,
+- its footer,
+- all of its stylesheets, or
+- all of its CSS and script hosts.
 
-Only what is missing counts. A page that keeps the full template and adds to it, such as a route-level CSS chunk, an extra body class or its own CSS variables, has its own styling rather than an old template, and is not reported. Each listed page says what it lacks, for example `Missing navigation, footer`.
+Only what is missing counts, and a stylesheet or host only counts when the page keeps none of the template's. The site template often carries assets that are not chrome, such as a post stylesheet, an image CDN every post embeds from or a preconnect hint, so an about or contact page that keeps the site stylesheet is not reported for lacking them. Image hosts and resource hints are not compared at all. A page that keeps the full template and adds to it, such as a route-level CSS chunk, an extra body class or its own CSS variables, has its own styling rather than an old template, and is not reported. Each listed page says what it lacks, for example `Missing navigation, footer`.
 
 Pages that `integrity/template-discontinuity` reports as off-template are left out, so one page is never described twice.
 

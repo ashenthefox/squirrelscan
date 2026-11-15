@@ -26,7 +26,12 @@ type Kind =
   | "blog"
   | "landing"
   | "chunk"
-  | "restyled";
+  | "restyled"
+  | "post"
+  | "about"
+  | "contact"
+  | "home"
+  | "moved";
 
 const NAV = `<nav><a href="/">Home</a></nav>`;
 const FOOT = `<footer>(c) example</footer>`;
@@ -51,6 +56,16 @@ function html(kind: Kind, i: number): string {
       return `<html><head>${head("/docs.css", `<script src="https://cdn.example.com/docs.js"></script>`)}</head><body class="docs">${NAV}<main>${i}</main>${FOOT}</body></html>`;
     case "blog":
       return `<html><head>${head("/blog.css", `<script src="https://cdn.example.com/blog.js"></script>`)}</head><body class="blog">${NAV}<main>${i}</main>${FOOT}</body></html>`;
+    case "post": // a blog post: site chrome plus a post stylesheet, an image CDN and a preconnect
+      return `<html><head>${head("/theme/v2.css", `<link rel="stylesheet" href="/theme/post.css"><link rel="preconnect" href="https://fonts.example.net"><script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site post">${NAV}<main><img src="https://images.example-cdn.net/p${i}.jpg">Body ${i}</main>${FOOT}</body></html>`;
+    case "about": // a singleton page: the site stylesheet and script only
+      return `<html><head>${head("/theme/v2.css", `<script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site about">${NAV}<main>About ${i}</main>${FOOT}</body></html>`;
+    case "contact": // a singleton page with its own form script and no app bundle
+      return `<html><head>${head("/theme/v2.css", `<script src="/forms.js"></script>`)}</head><body class="v2 site contact">${NAV}<main>Contact ${i}</main>${FOOT}</body></html>`;
+    case "home": // a singleton home page with its own hero stylesheet and image
+      return `<html><head>${head("/theme/v2.css", `<link rel="stylesheet" href="/theme/home.css"><script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site home">${NAV}<main><img src="/hero.jpg">Home ${i}</main>${FOOT}</body></html>`;
+    case "moved": // the old theme served from a retired asset host: no site stylesheet or code host left
+      return `<html><head><title>Page ${i}</title><link rel="stylesheet" href="https://old-assets.example.org/theme.css"><script src="https://old-assets.example.org/app.js"></script></head><body class="v1">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
     case "landing":
       return `<html><head>${head("/landing.css", `<script src="https://cdn.example.com/lp.js"></script>`)}</head><body class="lp">${NAV}<main>${i}</main>${FOOT}</body></html>`;
   }
@@ -155,7 +170,7 @@ describe("integrity/chrome-outlier", () => {
     const check = await bothPaths([...many("main", 38), ...many("old", 2)]);
     expect(check.status).toBe("warn");
     expect(check.items?.map((i) => i.id)).toEqual([u("/old/0"), u("/old/1")]);
-    expect(check.items?.[0]?.label).toBe("Missing 1 site stylesheet(s)");
+    expect(check.items?.[0]?.label).toBe("Missing site stylesheets");
     expect(check.message).toContain("outdated or broken site template");
   });
 
@@ -174,6 +189,25 @@ describe("integrity/chrome-outlier", () => {
   test("only pages missing dominant chrome are flagged among small clusters", async () => {
     const check = await bothPaths([...many("main", 20), ...many("chunk", 1), ...many("bare", 1)]);
     expect(check.items?.map((i) => i.id)).toEqual([u("/bare/0")]);
+  });
+
+  test("singleton pages on a blog whose posts load extra assets are not flagged", async () => {
+    // 27 posts share a template that adds a post stylesheet, an image CDN and a
+    // preconnect host to the site chrome. The about, contact and home pages keep
+    // the site stylesheet, nav and footer, so they are not on an old template.
+    const check = await bothPaths([
+      ...many("post", 27),
+      ...many("about", 1),
+      ...many("contact", 1),
+      ...many("home", 1),
+    ]);
+    expect(check.status).toBe("pass");
+  });
+
+  test("a page that shares no stylesheet or code host with the template is flagged", async () => {
+    const check = await bothPaths([...many("main", 20), ...many("moved", 1)]);
+    expect(check.items?.map((i) => i.id)).toEqual([u("/moved/0")]);
+    expect(check.items?.[0]?.label).toBe("Missing site stylesheets, site CSS and script hosts");
   });
 
   test("a streamed page without a page-time fingerprint is not reported", async () => {

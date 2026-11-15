@@ -2,7 +2,8 @@
 //
 // Site-scope. Clusters pages by template fingerprint and flags the small
 // clusters and singletons on an otherwise uniform site that lack part of the
-// dominant chrome: one of its stylesheets or asset hosts, its nav or its footer.
+// dominant chrome: its nav, its footer, all of its stylesheets or all of its
+// CSS and script hosts.
 // A page that only adds to that chrome (a route CSS chunk, a body class) is not
 // reported. The framing is design drift and staleness, not intent.
 // `integrity/template-discontinuity` is the intent-minded sibling (is this a
@@ -78,23 +79,32 @@ function chromeKey(fp: PageFingerprint): string {
 }
 
 /**
- * What `fp` lacks that the dominant template has: one of its stylesheets, one
- * of its asset hosts, its nav or its footer. Empty when the page has all of it.
+ * What `fp` lacks that the dominant template has: its nav, its footer, every
+ * one of its stylesheets, or every one of its CSS and script hosts. Empty when
+ * the page keeps the template's chrome.
  *
  * Only absences count. A page that adds a route-level CSS chunk, a body class
  * or a CSS variable on top of the dominant chrome is a page with its own
  * styling, not one left behind, so a different cluster key alone never reports
  * a page (#1367). Body classes and CSS variables vary per route on most
  * frameworks, so they are not compared at all.
+ *
+ * Stylesheets and hosts are a straggler signal only when the page shares none
+ * of the template's. The dominant template routinely carries assets that are
+ * not site chrome: a post stylesheet, an image CDN every post embeds from, a
+ * preconnect link. An about or contact page that keeps the site stylesheet but
+ * lacks those is still on the current template. Hosts are the code hosts (a
+ * stylesheet or a script), never image or bare `<link>` hosts, because content
+ * images and resource hints say nothing about which template rendered a page.
  */
 function missingChrome(fp: PageFingerprint, dominant: PageFingerprint): string[] {
   const missing: string[] = [];
   if (dominant.hasNav && !fp.hasNav) missing.push("navigation");
   if (dominant.hasFooter && !fp.hasFooter) missing.push("footer");
-  const sheets = [...dominant.stylesheetHrefs].filter((h) => !fp.stylesheetHrefs.has(h)).length;
-  if (sheets > 0) missing.push(`${sheets} site stylesheet(s)`);
-  const hosts = [...dominant.assetHosts].filter((h) => !fp.assetHosts.has(h)).length;
-  if (hosts > 0) missing.push(`${hosts} site asset host(s)`);
+  const sharesNone = (want: Set<string>, have: Set<string>): boolean =>
+    want.size > 0 && ![...want].some((v) => have.has(v));
+  if (sharesNone(dominant.stylesheetHrefs, fp.stylesheetHrefs)) missing.push("site stylesheets");
+  if (sharesNone(dominant.codeHosts, fp.codeHosts)) missing.push("site CSS and script hosts");
   return missing;
 }
 
@@ -253,7 +263,7 @@ export const chromeOutlierRule: Rule = {
     id: "integrity/chrome-outlier",
     name: "Chrome Outlier",
     description:
-      "Finds pages left on an outdated or broken site template: a few pages missing the navigation, footer, stylesheets or asset hosts of a site that is otherwise uniform",
+      "Finds pages left on an outdated or broken site template: a few pages missing the navigation, footer, stylesheets or CSS and script hosts of a site that is otherwise uniform",
     solution:
       "These pages do not share the template the rest of your site uses. After a redesign that usually means pages still on the old layout, or pages that lost their navigation, footer or stylesheets. Open each page and compare it with a page that looks right. If it is a deliberate one-off (a campaign page, a standalone tool), leave it. Otherwise move it onto the current template or republish it from the current theme.",
     category: "integrity",
