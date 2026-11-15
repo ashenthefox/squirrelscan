@@ -55,6 +55,7 @@ import type {
   RuleRunResult,
   SiteData,
   StylesheetBackgroundData,
+  StylesheetContentData,
   WebAppManifestData,
 } from "@squirrelscan/rules";
 import type { SQLiteStorage } from "@squirrelscan/crawler";
@@ -139,6 +140,7 @@ import {
   RESOURCE_SIZE_LIMITS,
   SQUIRRELSCAN_USER_AGENT,
   STORED_SCRIPT_LIMITS,
+  STYLESHEET_FETCH_LIMITS,
 } from "@squirrelscan/utils/constants";
 import { maskLinkTokens } from "@squirrelscan/utils/link-actions";
 import { isCloudflareEmailProtectionUrl } from "@squirrelscan/utils/cloudflare-email";
@@ -163,6 +165,7 @@ import {
   type FetchedWebAppManifests,
   type WebAppManifestOccurrences,
 } from "./web-app-manifest";
+import { toStylesheetContentData } from "./stylesheet-content";
 import { fetchScriptContents, scriptRuleLimit, type ScriptFetchResult } from "./script-fetcher";
 import { initialViewportFlags, selectImageCandidate } from "@squirrelscan/utils/image-loading";
 import { isRateLimitStatus } from "@squirrelscan/utils/rate-limit";
@@ -317,9 +320,9 @@ const PRELOAD_CHUNK_FETCH_LIMIT = 20;
 /** The one rule that reads the page background a linked stylesheet sets (#1756). */
 const COLOR_CONTRAST_RULE_ID = "a11y/color-contrast";
 /** Same-site stylesheets read for the page background (#1756): the most widely linked first. */
-const STYLESHEET_BACKGROUND_FETCH_LIMIT = 20;
+const STYLESHEET_BACKGROUND_FETCH_LIMIT = STYLESHEET_FETCH_LIMITS.MAX_STYLESHEETS_TO_FETCH;
 /** A stylesheet over this many decoded bytes is not read (#1756). */
-const STYLESHEET_BACKGROUND_MAX_BYTES = 1024 * 1024;
+const STYLESHEET_BACKGROUND_MAX_BYTES = STYLESHEET_FETCH_LIMITS.MAX_STYLESHEET_SIZE_BYTES;
 
 /** The one rule that reads the third-party asset pools (#703). */
 const BROKEN_RESOURCES_RULE_ID = "reliability/broken-resources";
@@ -382,6 +385,12 @@ export interface PreFetchedAssets {
    * when the rule is off or the phase did not run: the rule then reads every linked stylesheet as unread.
    */
   stylesheetBackgrounds?: StylesheetBackgroundData[];
+  /**
+   * Same-site stylesheet bodies for rules to read in-process (`ctx.site.stylesheets`, repo#1374). One
+   * entry per stylesheet the asset phase requested; `content` is absent when it was not read (cap,
+   * cross-origin, budget, error). NEVER published: rules emit derived signals only.
+   */
+  stylesheets?: StylesheetContentData[];
   /**
    * Same-site chunks a page preloads (`modulepreload`, `preload as=script`) that
    * no `<script src>` names. Held apart from `scripts` so the file-size,
@@ -1494,6 +1503,7 @@ export function fetchAssetsFromOccurrences(
         : {}),
       ...(probeStylesheetBackgrounds
         ? {
+            stylesheets: resourceResults.stylesheets.map(toStylesheetContentData),
             stylesheetBackgrounds: resourceResults.stylesheets.map((fetch) => {
               const readable = fetch.content !== null && !/html/i.test(fetch.contentType ?? "");
               const other = readable ? stylesheetBackgroundSelectorsOf(fetch.content as string) : null;
@@ -1968,6 +1978,7 @@ export function runRulesOnStorage(
       assetCapDropped,
       scriptsNotReadUrls,
       stylesheetBackgrounds,
+      stylesheets,
       pdfSizes,
       sitemapUrlStatuses,
       webAppManifests,
@@ -2080,6 +2091,7 @@ export function runRulesOnStorage(
       assetCapDropped,
       scriptsNotReadUrls,
       stylesheetBackgrounds,
+      stylesheets,
       pdfSizes,
       sitemapUrlStatuses,
       webAppManifests,
@@ -2903,6 +2915,7 @@ function buildStreamingSiteData(
       assetCapDropped,
       scriptsNotReadUrls,
       stylesheetBackgrounds,
+      stylesheets,
       pdfSizes,
       sitemapUrlStatuses,
       webAppManifests,
@@ -3028,6 +3041,7 @@ function buildStreamingSiteData(
       assetCapDropped,
       scriptsNotReadUrls,
       stylesheetBackgrounds,
+      stylesheets,
       pdfSizes,
       sitemapUrlStatuses,
       webAppManifests,

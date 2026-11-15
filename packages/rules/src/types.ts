@@ -533,6 +533,16 @@ export interface FetchedTarget {
   wafChallenge?: boolean;
 }
 
+/**
+ * One same-site stylesheet the asset phase requested (repo#1374). `content` is the decoded body, absent when it
+ * was not read (over the size cap, past the per-crawl cap, cross-origin, budget spent, failed or non-CSS).
+ * In-process only: never published, so a rule emits derived signals and not the body.
+ */
+export interface StylesheetContentData {
+  url: string;
+  content?: string;
+}
+
 /** What a stylesheet says about the colour behind the page: only its `html`, `body` and `:root` rules are read (#1756). */
 export type StylesheetBackground =
   | { kind: "none" }
@@ -701,6 +711,8 @@ export interface SiteData {
    * was not read. Absent when the asset phase did not run or the rule is off.
    */
   stylesheetBackgrounds?: StylesheetBackgroundData[];
+  /** Same-site stylesheet bodies, in-process only (repo#1374). Absent when the asset phase did not fetch them. */
+  stylesheets?: StylesheetContentData[];
   /**
    * Referenced URLs the asset fetch caps (`maxScripts`, `maxResources`) left
    * unfetched, per kind (#703). Absent or zero means nothing was dropped.
