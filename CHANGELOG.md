@@ -43,6 +43,8 @@ Four new probing security rules check what a site hands to anyone who asks: open
 - When a report cannot be published because it is over the 1MB publish limit, the CLI no longer suggests auditing fewer pages (published reports are capped to fit, so that advice was wrong). It now says the report could not be capped to fit and that the full detail stays in your local project (`squirrel report`).
 - Release binaries are built with `NODE_ENV` pinned to `"production"` (`bun build --production --define process.env.NODE_ENV='"production"'`), so test-only knobs gated on `NODE_ENV === "test"` are compiled out whatever the build environment exports (squirrelscan/squirrelscan#1854, #1855). Bundled React now uses its production build for the HTML report; report output is unchanged.
 
+- Script-heavy pages audit faster (squirrelscan/repo#1864): each inline script's text is read once per rule. `security/leaked-secrets` no longer scans every inline script a second time inside the page's HTML, which takes its per-page cost on a 1 MB storefront page from about 32 to 17 ms. A value in an inline script is reported only at `inline-script` (a public Shopify token on a Shopify page used to show as `html`), and `meta.occurrences` no longer lists a duplicate `html` entry for it. `a11y/skip-link` and `perf/js-libraries` no longer serialise or search the whole page for what they already read; their results are unchanged.
+
 ### Fixed
 
 - Audit prompts only appear when both stdin and stdout are a terminal, so piped output never waits on a prompt (squirrelscan/repo#1171).
