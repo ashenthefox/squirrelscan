@@ -1,9 +1,10 @@
 // integrity/chrome-outlier - pages left on an outdated or broken site template.
 //
 // Site-scope. Clusters pages by template fingerprint and flags the small
-// clusters and singletons on an otherwise uniform site: pages left on an old
-// template after a redesign, or missing the nav, footer and stylesheets the rest
-// of the site has. The framing is design drift and staleness, not intent.
+// clusters and singletons on an otherwise uniform site that lack part of the
+// dominant chrome: one of its stylesheets or asset hosts, its nav or its footer.
+// A page that only adds to that chrome (a route CSS chunk, a body class) is not
+// reported. The framing is design drift and staleness, not intent.
 // `integrity/template-discontinuity` is the intent-minded sibling (is this a
 // planted standalone page?), so a page it reports is left out here and the two
 // never describe one page twice.
@@ -49,6 +50,12 @@ interface Entry {
   url: string;
   /** Equality key of the page's chrome. Never surfaces in output. */
   key: string;
+  /**
+   * The page's decomposed chrome, to say what it lacks against the dominant
+   * template. Absent on the streaming path when no page-time fingerprint was
+   * captured; such a page is never reported, since nothing proves it lacks anything.
+   */
+  fp?: PageFingerprint;
 }
 
 interface Options {
@@ -68,6 +75,27 @@ function chromeKey(fp: PageFingerprint): string {
     fp.hasNav,
     fp.hasFooter,
   ]);
+}
+
+/**
+ * What `fp` lacks that the dominant template has: one of its stylesheets, one
+ * of its asset hosts, its nav or its footer. Empty when the page has all of it.
+ *
+ * Only absences count. A page that adds a route-level CSS chunk, a body class
+ * or a CSS variable on top of the dominant chrome is a page with its own
+ * styling, not one left behind, so a different cluster key alone never reports
+ * a page (#1367). Body classes and CSS variables vary per route on most
+ * frameworks, so they are not compared at all.
+ */
+function missingChrome(fp: PageFingerprint, dominant: PageFingerprint): string[] {
+  const missing: string[] = [];
+  if (dominant.hasNav && !fp.hasNav) missing.push("navigation");
+  if (dominant.hasFooter && !fp.hasFooter) missing.push("footer");
+  const sheets = [...dominant.stylesheetHrefs].filter((h) => !fp.stylesheetHrefs.has(h)).length;
+  if (sheets > 0) missing.push(`${sheets} site stylesheet(s)`);
+  const hosts = [...dominant.assetHosts].filter((h) => !fp.assetHosts.has(h)).length;
+  if (hosts > 0) missing.push(`${hosts} site asset host(s)`);
+  return missing;
 }
 
 const isOk = (status: number): boolean => status >= 200 && status < 300;
@@ -126,10 +154,28 @@ function evaluate(entries: Entry[], suppressed: Set<string>, opts: Options): Rul
     );
   }
 
-  const stragglers: Entry[] = [];
-  for (const [key, list] of clusters) {
-    if (key === dominantKey || list.length > opts.maxClusterPages) continue;
-    for (const e of list) if (!suppressed.has(e.url)) stragglers.push(e);
+  // Every page in the dominant cluster shares one key, so any member's
+  // fingerprint is the template's. Take the lowest URL that has one, so the
+  // choice does not depend on page order.
+  let dominantFp: PageFingerprint | undefined;
+  let dominantFpUrl = "";
+  for (const e of clusters.get(dominantKey) ?? []) {
+    if (e.fp && (!dominantFp || e.url < dominantFpUrl)) {
+      dominantFp = e.fp;
+      dominantFpUrl = e.url;
+    }
+  }
+
+  const stragglers: { url: string; missing: string[] }[] = [];
+  if (dominantFp) {
+    for (const [key, list] of clusters) {
+      if (key === dominantKey || list.length > opts.maxClusterPages) continue;
+      for (const e of list) {
+        if (!e.fp || suppressed.has(e.url)) continue;
+        const missing = missingChrome(e.fp, dominantFp);
+        if (missing.length > 0) stragglers.push({ url: e.url, missing });
+      }
+    }
   }
   stragglers.sort((a, b) => (a.url < b.url ? -1 : a.url > b.url ? 1 : 0));
 
@@ -156,7 +202,7 @@ function evaluate(entries: Entry[], suppressed: Set<string>, opts: Options): Rul
     status: share >= opts.failShare && stragglers.length >= 3 ? "fail" : "warn",
     message: `${stragglers.length} page(s) look left on an outdated or broken site template`,
     value: preview,
-    items: stragglers.map((e) => ({ id: e.url })),
+    items: stragglers.map((e) => ({ id: e.url, label: `Missing ${e.missing.join(", ")}` })),
     details: {
       total: stragglers.length,
       pagesCompared: entries.length,
@@ -187,15 +233,17 @@ async function runViaSiteQuery(
       "Insufficient pages for a template norm"
     );
   }
-  const entries: Entry[] = [];
-  for await (const row of siteQuery.pagesMatching((r: PageFeatureRow) => isOk(r.status))) {
-    if (!row.templateFp) continue;
-    entries.push({ url: row.normalizedUrl, key: row.templateFp });
-  }
   const collected = ctx.collectedSignals;
   const fps: { url: string; fp: PageFingerprint }[] = [];
   if (collected) {
     for (const rec of collected.pages) if (rec.fingerprint) fps.push({ url: rec.url, fp: rec.fingerprint });
+  }
+  const fpByUrl = new Map(fps.map((e) => [e.url, e.fp]));
+  const entries: Entry[] = [];
+  for await (const row of siteQuery.pagesMatching((r: PageFeatureRow) => isOk(r.status))) {
+    if (!row.templateFp) continue;
+    const fp = fpByUrl.get(row.normalizedUrl);
+    entries.push({ url: row.normalizedUrl, key: row.templateFp, ...(fp ? { fp } : {}) });
   }
   return evaluate(entries, discontinuityUrls(fps), opts);
 }
@@ -205,7 +253,7 @@ export const chromeOutlierRule: Rule = {
     id: "integrity/chrome-outlier",
     name: "Chrome Outlier",
     description:
-      "Finds pages left on an outdated or broken site template: a few pages whose header, footer and stylesheets differ from a site that is otherwise uniform",
+      "Finds pages left on an outdated or broken site template: a few pages missing the navigation, footer, stylesheets or asset hosts of a site that is otherwise uniform",
     solution:
       "These pages do not share the template the rest of your site uses. After a redesign that usually means pages still on the old layout, or pages that lost their navigation, footer or stylesheets. Open each page and compare it with a page that looks right. If it is a deliberate one-off (a campaign page, a standalone tool), leave it. Otherwise move it onto the current template or republish it from the current theme.",
     category: "integrity",
@@ -260,7 +308,7 @@ export const chromeOutlierRule: Rule = {
       const fp = fingerprintPage(page.parsed, page.url);
       if (!fp) continue;
       fps.push({ url: page.url, fp });
-      if (isOk(page.statusCode)) entries.push({ url: page.url, key: chromeKey(fp) });
+      if (isOk(page.statusCode)) entries.push({ url: page.url, key: chromeKey(fp), fp });
     }
     return evaluate(entries, discontinuityUrls(fps), opts);
   },

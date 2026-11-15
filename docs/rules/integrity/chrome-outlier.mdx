@@ -1,6 +1,6 @@
 ---
 title: "Chrome outlier: pages left on an outdated site template"
-description: "A few pages without the header, footer and stylesheets of the rest of the site were usually missed in a redesign. squirrel clusters pages by template and flags the stragglers."
+description: "A few pages without the navigation, footer and stylesheets of the rest of the site were usually missed in a redesign. squirrel clusters pages by template and flags the stragglers."
 ---
 
 ## What a chrome outlier is
@@ -11,7 +11,14 @@ This is a design consistency check. It asks whether a page was left behind, not 
 
 ## What squirrel checks
 
-The rule is site-wide. It groups every successful (2xx) page by its template fingerprint, the same key stored for each page during the crawl. The largest group is the site's template. When that group covers at least `minAgreement` of the pages, every page in a small group (`maxClusterPages` pages or fewer, singletons included) is a straggler.
+The rule is site-wide. It groups every successful (2xx) page by its template fingerprint, the same key stored for each page during the crawl. The largest group is the site's template. When that group covers at least `minAgreement` of the pages, a page in a small group (`maxClusterPages` pages or fewer, singletons included) is a straggler when it lacks part of the site template:
+
+- one of the template's stylesheets,
+- one of its asset hosts,
+- its navigation, or
+- its footer.
+
+Only what is missing counts. A page that keeps the full template and adds to it, such as a route-level CSS chunk, an extra body class or its own CSS variables, has its own styling rather than an old template, and is not reported. Each listed page says what it lacks, for example `Missing navigation, footer`.
 
 Pages that `integrity/template-discontinuity` reports as off-template are left out, so one page is never described twice.
 

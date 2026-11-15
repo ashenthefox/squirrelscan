@@ -19,7 +19,7 @@ How it works:
 
 ### Added
 
-- New rule `integrity/chrome-outlier` (squirrelscan/repo#1367) flags pages left on an outdated or broken site template: small template clusters and singletons on a site where one template covers at least 70% of pages (10 pages minimum). It reads the stored template fingerprint, skips pages that `integrity/template-discontinuity` already reports, and warns on a few stragglers or fails when they reach 10% of the crawl.
+- New rule `integrity/chrome-outlier` (squirrelscan/repo#1367) flags pages left on an outdated or broken site template: pages in small template clusters and singletons on a site where one template covers at least 70% of pages (10 pages minimum) that lack one of that template's stylesheets or asset hosts, its navigation or its footer. A page that only adds a route-level stylesheet or a body class is not reported. It reads the stored template fingerprint, skips pages that `integrity/template-discontinuity` already reports, and warns on a few stragglers or fails when they reach 10% of the crawl.
 
 ## v0.0.183 (2026-11-17)
 

@@ -17,7 +17,16 @@ import type { ParsedPage, Rule, RuleContext } from "../src/types";
 const SITE = "https://example.com";
 const u = (path: string): string => `${SITE}${path}`;
 
-type Kind = "main" | "old" | "bare" | "alien" | "docs" | "blog" | "landing";
+type Kind =
+  | "main"
+  | "old"
+  | "bare"
+  | "alien"
+  | "docs"
+  | "blog"
+  | "landing"
+  | "chunk"
+  | "restyled";
 
 const NAV = `<nav><a href="/">Home</a></nav>`;
 const FOOT = `<footer>(c) example</footer>`;
@@ -28,8 +37,12 @@ function html(kind: Kind, i: number): string {
   switch (kind) {
     case "main":
       return `<html><head>${head("/theme/v2.css", `<script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
-    case "old":
-      return `<html><head>${head("/theme/v2.css", `<script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v1 legacy">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
+    case "old": // the pre-redesign stylesheet: lacks the site's /theme/v2.css
+      return `<html><head>${head("/theme/v1.css", `<script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v1 legacy">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
+    case "chunk": // the full site chrome plus a route-level CSS chunk and body class
+      return `<html><head>${head("/theme/v2.css", `<link rel="stylesheet" href="/assets/route-pricing.css"><script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site page-pricing">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
+    case "restyled": // the full site chrome, only the body classes and CSS variables differ
+      return `<html><head>${head("/theme/v2.css", `<script src="https://cdn.example.com/app.js"></script><style>:root{--accent:red}</style>`)}</head><body class="v2 dark-mode">${NAV}<main>Body ${i}</main>${FOOT}</body></html>`;
     case "bare": // same stylesheet and host, lost nav and footer
       return `<html><head>${head("/theme/v2.css", `<script src="https://cdn.example.com/app.js"></script>`)}</head><body class="v2 site"><main>Body ${i}</main></body></html>`;
     case "alien": // shares nothing: template-discontinuity territory
@@ -142,6 +155,7 @@ describe("integrity/chrome-outlier", () => {
     const check = await bothPaths([...many("main", 38), ...many("old", 2)]);
     expect(check.status).toBe("warn");
     expect(check.items?.map((i) => i.id)).toEqual([u("/old/0"), u("/old/1")]);
+    expect(check.items?.[0]?.label).toBe("Missing 1 site stylesheet(s)");
     expect(check.message).toContain("outdated or broken site template");
   });
 
@@ -149,6 +163,23 @@ describe("integrity/chrome-outlier", () => {
     const check = await bothPaths([...many("main", 15), ...many("bare", 1)]);
     expect(check.status).toBe("warn");
     expect(check.items?.map((i) => i.id)).toEqual([u("/bare/0")]);
+    expect(check.items?.[0]?.label).toBe("Missing navigation, footer");
+  });
+
+  test("a route-level CSS chunk or body class on top of the site chrome is not flagged", async () => {
+    const check = await bothPaths([...many("main", 20), ...many("chunk", 1), ...many("restyled", 2)]);
+    expect(check.status).toBe("pass");
+  });
+
+  test("only pages missing dominant chrome are flagged among small clusters", async () => {
+    const check = await bothPaths([...many("main", 20), ...many("chunk", 1), ...many("bare", 1)]);
+    expect(check.items?.map((i) => i.id)).toEqual([u("/bare/0")]);
+  });
+
+  test("a streamed page without a page-time fingerprint is not reported", async () => {
+    const specs = [...many("main", 15), ...many("bare", 1)];
+    const checks = await run(chromeOutlierRule, streamCtx(specs, false));
+    expect(checks.map((c) => c.status)).toEqual(["pass"]);
   });
 
   test("many stragglers fail", async () => {
