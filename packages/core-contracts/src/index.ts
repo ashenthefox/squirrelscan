@@ -2431,6 +2431,16 @@ export interface MarkdownProbeData {
   // Absolute URL from a `Link: <...>; rel="alternate"; type="text/markdown"`
   // response header on the negotiated fetch, or null if none was sent.
   alternateMarkdownUrl?: string | null;
+  // HTTP status of the lenient negotiation fetch (`Accept: text/markdown,
+  // text/x-markdown, */*`), or null when it got no answer (repo#1322).
+  // Optional: undefined for storage rows persisted before these fields existed.
+  negotiatedStatus?: number | null;
+  // HTTP status and Content-Type of the strict fetch (`Accept: text/markdown`,
+  // what a Markdown-only agent sends). A 5xx here, while the lenient fetch was
+  // answered, means the site breaks agents that negotiate Markdown (repo#1322).
+  // null when the strict fetch got no answer; undefined on older rows.
+  strictNegotiatedStatus?: number | null;
+  strictNegotiatedContentType?: string | null;
 }
 
 // One differential cloaking probe of a suspicious path (integrity Phase 3, #118).

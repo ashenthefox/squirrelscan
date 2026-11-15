@@ -233,6 +233,9 @@ function buildMarkdownProbeData(probe: MarkdownProbeRecord | null): MarkdownProb
     markdownTokensHeader: probe.markdownTokensHeader ?? null,
     originalTokensHeader: probe.originalTokensHeader ?? null,
     alternateMarkdownUrl: probe.alternateMarkdownUrl ?? null,
+    negotiatedStatus: probe.negotiatedStatus ?? null,
+    strictNegotiatedStatus: probe.strictNegotiatedStatus ?? null,
+    strictNegotiatedContentType: probe.strictNegotiatedContentType ?? null,
   };
 }
 

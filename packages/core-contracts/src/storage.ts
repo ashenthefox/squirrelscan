@@ -1278,6 +1278,10 @@ export interface MarkdownProbeRecord {
   markdownTokensHeader?: string | null;
   originalTokensHeader?: string | null;
   alternateMarkdownUrl?: string | null;
+  /** Negotiation status codes (repo#1322); undefined on rows persisted before schema v42. */
+  negotiatedStatus?: number | null;
+  strictNegotiatedStatus?: number | null;
+  strictNegotiatedContentType?: string | null;
   fetchedAt: number;
 }
 

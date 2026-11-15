@@ -83,7 +83,7 @@ describe("ax/markdown-response", () => {
     expect(c[0]?.message).toContain(".md variant");
   });
 
-  test("no check ever fails; markdown present → all info", async () => {
+  test("absent markdown never fails; markdown present → all info", async () => {
     expect((await run(probe())).every((c) => c.status !== "fail")).toBe(true);
     expect((await run(probe({ servesMarkdown: true, negotiatedContentType: "text/markdown" }))).every((c) => c.status === "info")).toBe(
       true,
@@ -136,5 +136,70 @@ describe("ax/markdown-response", () => {
       }),
     ));
     expect(c.find((r) => r.name === "markdown-response-headers")?.status).toBe("info");
+  });
+
+  describe("strict negotiation 5xx vs absent markdown (repo#1322)", () => {
+    test("5xx on strict Accept: text/markdown → distinct fail check, not the absent recommendation", async () => {
+      const c = await run(
+        probe({
+          negotiatedStatus: 200,
+          strictNegotiatedStatus: 500,
+          strictNegotiatedContentType: "application/json",
+        }),
+      );
+      const error = c.find((r) => r.name === "markdown-negotiation-error");
+      expect(error).toBeDefined();
+      // fail, not warn: a warn in this info-severity rule is score-neutral.
+      expect(error?.status).toBe("fail");
+      expect(error?.value).toBe(500);
+      expect(error?.message).toContain("HTTP 500");
+      expect(error?.message).not.toContain("No Markdown response");
+      expect(error?.details?.strictNegotiatedContentType).toBe("application/json");
+      // The primary check is still first and still reports markdown as absent.
+      expect(c[0]?.name).toBe("markdown-response");
+      expect(c[0]?.value).toBe("absent");
+    });
+
+    test("absent markdown (strict answered 200 HTML or 406) → only the advisory check, no error", async () => {
+      for (const strictNegotiatedStatus of [200, 404, 406, null, undefined]) {
+        const c = await run(probe({ negotiatedStatus: 200, strictNegotiatedStatus }));
+        expect(c.find((r) => r.name === "markdown-negotiation-error")).toBeUndefined();
+        expect(c.every((r) => r.status !== "fail")).toBe(true);
+        expect(c[0]?.name).toBe("markdown-response");
+        expect(c[0]?.status).toBe("warn");
+        expect(c[0]?.value).toBe("absent");
+        expect(c[0]?.message).toContain("No Markdown response");
+      }
+    });
+
+    test("every 5xx status is flagged; 4xx is not", async () => {
+      for (const status of [500, 502, 503, 504]) {
+        const c = await run(probe({ strictNegotiatedStatus: status }));
+        expect(c.find((r) => r.name === "markdown-negotiation-error")?.status).toBe("fail");
+      }
+      const notAcceptable = await run(probe({ strictNegotiatedStatus: 406 }));
+      expect(notAcceptable.find((r) => r.name === "markdown-negotiation-error")).toBeUndefined();
+    });
+
+    test("5xx on strict while a .md variant exists → still flagged alongside available", async () => {
+      const c = await run(
+        probe({ strictNegotiatedStatus: 503, mdVariantExists: true, mdVariantContentType: "text/markdown" }),
+      );
+      expect(c[0]?.value).toBe("available");
+      expect(c.find((r) => r.name === "markdown-negotiation-error")?.status).toBe("fail");
+    });
+
+    test("strict-only Markdown names the strict content type, not the lenient HTML", async () => {
+      const c = await run(
+        probe({
+          servesMarkdown: true,
+          negotiatedContentType: "text/html",
+          strictNegotiatedStatus: 200,
+          strictNegotiatedContentType: "text/markdown; charset=utf-8",
+        }),
+      );
+      expect(c[0]?.value).toBe("available");
+      expect(c[0]?.message).toContain("content negotiation (text/markdown; charset=utf-8)");
+    });
   });
 });
