@@ -448,7 +448,7 @@ describe("security/leaked-secrets: the content prefilter never loses a finding",
   test("every finding made unpadded is still made, unchanged, inside 70 KB of bundle", () => {
     const lost: string[] = [];
     const paddedPrefix = `${PAD}\n;\n`;
-    const withoutOffset = ({ offset: _offset, ...finding }: LeakedSecret) => finding;
+    const withoutOffset = ({ offset: _offset, context: _context, ...finding }: LeakedSecret) => finding;
     for (const fixture of fixtures) {
       const bare = scanContent(fixture, "inline-script");
       expect(bare.length).toBeGreaterThan(0); // a vacuous fixture proves nothing
@@ -1248,5 +1248,25 @@ describe("security/leaked-secrets: vendor public identifiers in URL queries (#57
       html(`<script async src="https://cdn.mida.so/js/optimize.js?key=abc123&auth=${REAL_SECRET}"></script>`)
     ));
     expect(items.map((i) => i.id).join("\n")).toContain("Stripe Live Key");
+  });
+});
+
+describe("evidence context (repo#2215)", () => {
+  test("finding carries a redacted context with neighbours masked", async () => {
+    const { scanContent } = await import("../src/security/leaked-secrets");
+    const key = ["sk", "live", "abcdefghijklmnopqrstuvwx12"].join("_"); // assembled so the fixture is not a literal secret
+    const neighbour = ["AKIA", "IOSFODNN7EXAMPLE"].join("");
+    const html = `<script>var a="x"; var k="${key}"; var other="${neighbour}";</script>`;
+    const found = scanContent(html, "inline-script", "https://example.com/a.js");
+    const stripe = found.find((f) => f.type === "Stripe Live Key");
+    expect(stripe?.context).toBe(
+      `<script>var a="x"; var k="sk_liv********************wx12"; var other="AKIAIO**********MPLE";</script>`
+    );
+    for (const f of found) {
+      expect(f.context).toBeDefined();
+      expect(f.context).not.toContain(key);
+      expect(f.context).not.toContain(neighbour);
+    }
+    expect(stripe?.sourceUrl).toBe("https://example.com/a.js");
   });
 });

@@ -1555,6 +1555,12 @@ export interface LeakedSecret {
   sourceUrl?: string; // URL of the script file or page
   /** What the value's own structure decoded to (#361): account id, role… */
   extra?: FindingExtra;
+  /**
+   * Redacted text around the match (up to EVIDENCE_CONTEXT_RADIUS characters each side) so a reader can find it in the
+   * source: the value is masked as in the item id, and any other token-shaped run nearby is masked too. Absent when the
+   * match could not be located in the scanned text.
+   */
+  context?: string;
 }
 
 /**
@@ -2580,6 +2586,33 @@ function sdkInitBrandOf(content: string, keyAt: number): string | undefined {
 // identifier.
 const REVENUECAT_CONTEXT_RE = /purchases|revenuecat/i;
 const REVENUECAT_CONTEXT_REACH = 200;
+
+/** Characters of source text kept on each side of a match in a finding's `context`. */
+export const EVIDENCE_CONTEXT_RADIUS = 120;
+
+// A long token-shaped run or the credentials of a URL: whatever else sits near a match could itself be a secret.
+const NEARBY_TOKEN_RE = /[A-Za-z0-9_\-+/=.]{20,}/g;
+const URL_CREDENTIALS_RE = /(:\/\/)[^\s/@"'<>]+@/g;
+
+function redactNearby(text: string): string {
+  return text
+    .replace(URL_CREDENTIALS_RE, "$1****@")
+    .replace(NEARBY_TOKEN_RE, (run) => maskSecret(run));
+}
+
+/**
+ * The redacted evidence context of a match at `offset` in `content`: the text either side with other token-shaped runs
+ * masked, and the match itself masked exactly as its item id is. Undefined when the match is not at that offset.
+ */
+export function evidenceContext(content: string, offset: number, length: number, value: string): string | undefined {
+  if (offset < 0 || length <= 0 || content.slice(offset, offset + Math.min(length, value.length)) !== value.slice(0, length)) {
+    return undefined;
+  }
+  const before = content.slice(Math.max(0, offset - EVIDENCE_CONTEXT_RADIUS), offset);
+  const after = content.slice(offset + length, offset + length + EVIDENCE_CONTEXT_RADIUS);
+  const flat = (t: string) => t.replace(/\s+/g, " ");
+  return `${redactNearby(flat(before))}${maskSecret(value)}${redactNearby(flat(after))}`;
+}
 
 function maskSecret(value: string): string {
   if (value.length <= 12) {
@@ -3712,6 +3745,7 @@ function scanInto(
     if (adjustedOffset < 0) return null;
     const extra = known || refined?.extra ? { ...known, ...refined?.extra } : undefined;
     const truncated = value.length > STORED_VALUE_MAX_LENGTH;
+    const context = evidenceContext(content, offset, length, value);
     return {
       type: refined?.type ?? name,
       value: truncated ? clampItemString(value, STORED_VALUE_MAX_LENGTH) : value,
@@ -3723,6 +3757,7 @@ function scanInto(
       offset: adjustedOffset,
       ...(source.scriptIndex !== undefined ? { scriptIndex: source.scriptIndex } : {}),
       sourceUrl,
+      ...(context !== undefined ? { context } : {}),
       ...(extra ? { extra } : {}),
     };
   };
@@ -4704,6 +4739,7 @@ export const leakedSecretsRule: Rule = {
         ...occurrencesMeta(origins.get(s.value)),
         length: s.length,
         offset: s.offset,
+        ...(s.context !== undefined ? { context: s.context } : {}),
         ...(s.scriptIndex !== undefined ? { scriptIndex: s.scriptIndex } : {}),
         ...(s.truncated ? { truncated: true } : {}),
       },
