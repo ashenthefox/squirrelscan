@@ -179,6 +179,7 @@
   "images/responsive-size",
   "images/srcset",
   "images/svg-inline",
+  "integrity/chrome-outlier",
   "integrity/orphan-page",
   "integrity/template-discontinuity",
   "legal/cookie-consent",

@@ -17,6 +17,10 @@ How it works:
 
 ## [Unreleased]
 
+### Added
+
+- New rule `integrity/chrome-outlier` (squirrelscan/repo#1367) flags pages left on an outdated or broken site template: small template clusters and singletons on a site where one template covers at least 70% of pages (10 pages minimum). It reads the stored template fingerprint, skips pages that `integrity/template-discontinuity` already reports, and warns on a few stragglers or fails when they reach 10% of the crawl.
+
 ## v0.0.183 (2026-11-17)
 
 Four new probing security rules check what a site hands to anyone who asks: open JSON APIs, sensitive JSON fields, exposed files such as `.env` and `.git`, and auth endpoints that leak the user record. Four more catch mixed locale conventions, inconsistent terminology, copy whose own date has passed and broken byline conventions. Large audits peak at about half the memory, and a probe that never got an answer is now reported as not checked instead of clean. This release adds 8 rules: 336 rules on by default, 28 of them in Security, 29 in Content, 16 in E-E-A-T and 4 in Internationalization.
