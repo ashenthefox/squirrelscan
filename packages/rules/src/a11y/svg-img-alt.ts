@@ -72,6 +72,7 @@ export const svgImgAltRule: Rule = {
       'A screen reader announces an <svg role="img"> as an image. With no name it reads "image" or skips it, so a chart, logo or icon that carries meaning is lost. Give it a name: a <title> as its first child (and aria-labelledby pointing at its id for the widest support), an aria-label, or an aria-labelledby that points at text on the page. An aria-labelledby whose id is not on the page names nothing. A decorative svg should not have role="img": use aria-hidden="true" or role="presentation" instead. An svg with no role, or hidden from view (the hidden attribute, aria-hidden, a closed dialog, an inline display:none), is not checked. A clickable svg (onclick or tabindex) with no name is reported by a11y/aria-labels, not twice.',
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "page",
     severity: "error",
     weight: 6,

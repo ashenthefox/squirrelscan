@@ -12,6 +12,7 @@ export const listStructureRule: Rule = {
       "Lists (<ul> and <ol>) should only contain <li> elements as direct children. For custom components, you can also use elements with role='listitem'. Move other content inside <li> elements.",
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "page",
     severity: "error",
     weight: 7,

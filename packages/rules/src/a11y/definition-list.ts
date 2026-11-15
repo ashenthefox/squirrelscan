@@ -12,6 +12,7 @@ export const definitionListRule: Rule = {
       "Definition lists (<dl>) should only contain <dt> (term) and <dd> (description) elements as direct children. Optionally, they can be wrapped in <div> for styling. Do not put other elements like <p>, <span>, or <li> directly inside <dl>.",
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "page",
     severity: "error",
     weight: 7,

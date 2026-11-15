@@ -62,6 +62,7 @@ export const ariaRequiredChildrenRule: Rule = {
       "Some ARIA roles require specific child roles. For example, role='list' must contain role='listitem', role='menu' must contain menu items. Add the required child elements with appropriate roles.",
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "page",
     severity: "error",
     weight: 7,

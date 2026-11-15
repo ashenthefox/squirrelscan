@@ -4545,6 +4545,7 @@ export const leakedSecretsRule: Rule = {
       "in your CI/CD pipeline to prevent future leaks.",
     category: "security",
     scope: "site",
+    findingScope: "resource",
     severity: "error",
     weight: 10,
     // Check names by outcome class (#1741).

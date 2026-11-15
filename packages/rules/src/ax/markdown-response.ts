@@ -16,6 +16,7 @@ export const markdownResponseRule: Rule = {
       "Agents and answer engines parse Markdown more reliably than rendered HTML. Serve a Markdown representation of your key pages: honor `Accept: text/markdown` via content negotiation, and/or publish a `.md` variant (e.g. /index.md). This is a recommendation only — it never affects your score.",
     category: "ax",
     scope: "site",
+    findingScope: "page",
     severity: "info",
     weight: 1,
     discoveryProbes: ["markdown"],

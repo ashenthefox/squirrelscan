@@ -92,6 +92,7 @@ export const identicalLinksSamePurposeRule: Rule = {
       "Links with the same visible text in the same programmatic context should go to the same URL. When identical link text leads to different destinations, it confuses screen reader users who navigate by listing links. Make link text unique or more descriptive, or label distinct navigation sections with aria-label or aria-labelledby.",
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "page",
     severity: "warning",
     weight: 4,

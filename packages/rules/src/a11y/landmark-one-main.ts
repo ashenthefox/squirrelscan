@@ -12,6 +12,7 @@ export const landmarkOneMainRule: Rule = {
       "Each page should have exactly one <main> element or element with role='main'. This helps screen reader users quickly navigate to the primary content. Multiple main landmarks confuse navigation. Use <aside>, <nav>, or other landmarks for secondary content.",
     category: "a11y",
     scope: "page",
+    findingScope: "page",
     verdictScope: "template",
     severity: "warning",
     weight: 5,
