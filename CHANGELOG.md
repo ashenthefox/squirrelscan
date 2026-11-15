@@ -17,6 +17,10 @@ How it works:
 
 ## [Unreleased]
 
+### Added
+
+- New rule `content/truncation-artifacts` (squirrelscan/repo#1360): flags a `<title>`, meta description or body excerpt that was cut mid-word by a character limit. A text counts as cut when it is the start of a longer text on the page (the H1, `og:title`, `og:description` or the body) and the longer text carries on inside a word, when an ellipsis is glued to a partial word at a round CMS limit (60, 70, 155, 160 and so on), or when a title or description of exactly that length ends on a dangling word such as `the` or `and`. A title or description cut fails; body copy ending in an orphaned ellipsis with no read more link only warns. An ellipsis after a whole word, a quotation and noindex pages are left alone.
+
 ### Fixed
 
 - An incremental audit that refetches an unchanged page now reports the headers that response carried, not the ones stored with the page (squirrelscan/repo#4765). A site that dropped an `X-Robots-Tag: noindex`, or added HSTS, without changing its HTML kept the old header in every later audit, and `core/robots-meta` reported a noindex the site no longer sent. A 200 whose body matched and a reused render (the conditional-render gate's probe) now replace the stored headers; an origin's own 304 updates the headers it resends and keeps the ones it omits, as HTTP caches do.
