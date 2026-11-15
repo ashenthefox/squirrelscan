@@ -212,6 +212,9 @@ export const chromeOutlierRule: Rule = {
     scope: "site",
     severity: "warning",
     weight: 4,
+    // Every integrity rule is locked against [[ignore]] (#1262), as the docs and
+    // the agent skill promise; switch it off with [rules] disable instead.
+    ignorable: false,
     optionsSchema: z.object({
       minPages: z
         .number()
