@@ -17,6 +17,10 @@ How it works:
 
 ## [Unreleased]
 
+### Added
+
+- New rule `links/anchor-target-conflict` (squirrelscan/repo#1372): reports one anchor text that points at several different pages across the site (the pages that deviate from the leading destination are listed), and one page linked with four or more unrelated anchor texts. Generic anchors such as `read more`, navigation links and the homepage are left out, it needs at least 10 pages, and an anchor is only reported when one destination takes at least 70% of the pages using it. See [links/anchor-target-conflict](https://docs.squirrelscan.com/rules/links/anchor-target-conflict).
+
 ### Fixed
 
 - An incremental audit that refetches an unchanged page now reports the headers that response carried, not the ones stored with the page (squirrelscan/repo#4765). A site that dropped an `X-Robots-Tag: noindex`, or added HSTS, without changing its HTML kept the old header in every later audit, and `core/robots-meta` reported a noindex the site no longer sent. A 200 whose body matched and a reused render (the conditional-render gate's probe) now replace the stored headers; an origin's own 304 updates the headers it resends and keeps the ones it omits, as HTTP caches do.
