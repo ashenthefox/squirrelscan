@@ -3592,7 +3592,8 @@ export function runStreamingRules(
       // written before it lacks the field, and a replay would read that as "no marker". The new id
       // makes every older entry a miss, so each site's first audit after the upgrade runs fresh once.
       // v4: contentFingerprint joined the record too (content/duplicate-content, #1690), same reason.
-      id: "site-dom-signals-v4",
+      // v5: colorUsage joined the record (content/color-sprawl, repo#1377), same reason.
+      id: "site-dom-signals-v5",
       collect(page, parsed, shared) {
         const signal = detachFromPage(
           // `shared.fingerprint` is the one the loop already built for

@@ -17,6 +17,10 @@ How it works:
 
 ## [Unreleased]
 
+### Added
+
+- New rule `content/color-sprawl` (squirrelscan/repo#1377): converts every color literal (hex, `rgb()`, `hsl()`, `oklch()`, named) in `<style>` blocks and `style=` attributes to OKLab and clusters by perceptual distance. It warns when more colors are visually indistinguishable from another than `max_redundant` (default 6), failing at three times that, and warns for a color that only one page uses. Literals in `--custom-property` definitions are not counted, so a token-driven design system stays clean. It reads inline styles only, because linked stylesheet bodies are not fetched yet, and every finding says so; a site with no inline color data is skipped, not passed. A crawl under 10 pages is skipped. Local rule, no account, no credits. The per-page signal joins the site-dom-signals record, so each site's first audit after the upgrade runs fresh once.
+
 ### Fixed
 
 - An incremental audit that refetches an unchanged page now reports the headers that response carried, not the ones stored with the page (squirrelscan/repo#4765). A site that dropped an `X-Robots-Tag: noindex`, or added HSTS, without changing its HTML kept the old header in every later audit, and `core/robots-meta` reported a noindex the site no longer sent. A 200 whose body matched and a reused render (the conditional-render gate's probe) now replace the stored headers; an origin's own 304 updates the headers it resends and keeps the ones it omits, as HTTP caches do.

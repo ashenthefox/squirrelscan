@@ -5,6 +5,7 @@ import type { Rule } from "../types";
 import { articleLinksRule } from "./article-links";
 import { authorInfoRule } from "./author-info";
 import { brokenHtmlRule } from "./broken-html";
+import { colorSprawlRule } from "./color-sprawl";
 import { commonMisspellingsRule } from "./common-misspellings";
 import { dateAgreementRule } from "./date-agreement";
 import { devLeakageRule } from "./dev-leakage";
@@ -64,6 +65,7 @@ export const rules: Rule[] = [
   h1TitleAlignmentRule,
   voiceConsistencyRule,
   terminologyConsistencyRule,
+  colorSprawlRule,
 ];
 
 export {
@@ -96,4 +98,5 @@ export {
   unrenderedMarkupRule,
   voiceConsistencyRule,
   wordCountRule,
+  colorSprawlRule,
 };
