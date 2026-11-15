@@ -105,6 +105,7 @@ API and auth endpoint probes and the exposed-files probe go only to the audited 
 | [`security/json-sensitive-fields`](/rules/security/json-sensitive-fields) | One `GET` per same-origin API endpoint found in your pages and scripts whose call site uses `GET` or states no method, at most ten. No cookies, no request body | `active` |
 | [`security/exposed-files`](/rules/security/exposed-files) | One `GET` to a random path (the baseline), then one request per path on a fixed list of 20 sensitive files such as `/.git/HEAD`, `/.env` and `/db.sql`, each a `GET`. Stops on a `429` or a bot challenge | `aggressive` |
 | [`security/auth-endpoint-disclosure`](/rules/security/auth-endpoint-disclosure) | One `GET` per current-user or session endpoint (such as `/api/me` or `/api/session`), at most six. No cookies, no `Authorization` header, no body: credentials are never submitted | `active` |
+| [`crawl/custom-404`](/rules/crawl/custom-404) | One `GET` to a random path that cannot exist, such as `/squirrelscan-missing-page-<hex>`. No cookies, no redirect followed, at most 256 KB read | `active` |
 | [`reliability/broken-forms`](/rules/reliability/broken-forms) | One `HEAD` per distinct form action URL the crawl did not fetch, then one `GET` when the `HEAD` is refused or fails. Never a `POST`. A form action on another site is probed only online with external link checks on; an offline run stays on the audited site | `active` |
 
 The GraphQL endpoints are the ones the audit found in your pages and scripts,
