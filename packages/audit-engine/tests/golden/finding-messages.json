@@ -2828,6 +2828,12 @@
    "conflicting-index-signals|pass|No page sends contradictory indexing signals||"
   ]
  },
+ "crawl/home-page-unreachable": {
+  "digest": "52926383030583",
+  "lines": [
+   "home-page-unreachable|pass|The home page loaded||"
+  ]
+ },
  "crawl/html-size": {
   "digest": "153079876188729",
   "lines": [
