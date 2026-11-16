@@ -7,6 +7,7 @@ import type {
   AuditFailureSource,
   RedirectChain,
   RedirectHop,
+  RenderLayout,
   ResponseHeaders,
   SecurityHeaders,
 } from "@squirrelscan/core-contracts";
@@ -576,6 +577,8 @@ export interface FetchResult {
   serverHtml?: string;
   /** A 304 synthesized from a full 200 by the conditional-render gate: its headers are complete (repo#4765). */
   synthesizedNotModified?: boolean;
+  /** Mobile-viewport layout payload, when the cloud render ran the mobile pass (repo#4218). */
+  layout?: RenderLayout;
   /** Browser render cost only, threaded from the browser-queue fetcher's server-measured value (#826). Absent for non-rendered fetches. */
   renderTimeMs?: number;
   /** Queue delivery lag + browser-pool acquisition + concurrency-slot wait before rendering started (#826). Absent for non-rendered fetches. */
@@ -1085,6 +1088,7 @@ function fetchWithDocumentFetcher(
       sourceHash: response.sourceHash,
       serverHtml: response.serverHtml,
       synthesizedNotModified: response.synthesizedNotModified,
+      ...(response.layout ? { layout: response.layout } : {}),
       // Queue-wait vs render-time breakdown, set only by the browser-queue
       // fetcher (#826).
       renderTimeMs: response.renderTimeMs,

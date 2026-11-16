@@ -618,6 +618,8 @@ export interface RenderJobResponse {
   chargedBreakdown?: RenderChargeLine[];
 }
 
+import type { RenderLayout } from "./render-layout";
+
 export interface RenderResultItem {
   url: string;
   status: number | null;
@@ -633,6 +635,11 @@ export interface RenderResultItem {
    * code removed after hydration, so the script rules still see them.
    */
   serverHtml?: string;
+  /**
+   * Layout measured at a mobile viewport (repo#4218, prerequisite for repo#1381). Present only when the render
+   * ran the mobile pass; absent on older results and renders without it, and then nothing changes.
+   */
+  layout?: RenderLayout;
   /** Browser render cost only, mirrored from crawler-worker. Absent on a render-cache hit (#826). */
   renderTimeMs?: number;
   /** Queue delivery lag + browser-pool acquisition + concurrency-slot wait before rendering started. Absent on a render-cache hit (#826). */

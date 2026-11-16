@@ -38,6 +38,7 @@
 // cancels the SUBMIT: the server debits on submit, so the submit runs to its
 // own bound and the debit is recorded whether or not anyone still wants the page.
 
+import { normalizeRenderLayout } from "@squirrelscan/core-contracts";
 import type {
   RenderChargeLine,
   RenderJobResponse,
@@ -245,6 +246,7 @@ export function mapRenderItemToResponse(
     item.headers && Object.keys(item.headers).length > 0
       ? item.headers
       : { "content-type": "text/html; charset=utf-8" };
+  const layout = normalizeRenderLayout(item.layout);
   return {
     url: requestUrl,
     finalUrl,
@@ -266,6 +268,8 @@ export function mapRenderItemToResponse(
     // The server's own HTML, when the render service sent it (#1769): only then does the crawler merge the
     // scripts hydration removed. Absent, the response is exactly what it was.
     ...(typeof item.serverHtml === "string" && item.serverHtml.length > 0 ? { serverHtml: item.serverHtml } : {}),
+    // Mobile layout payload (repo#4218), re-capped here; absent when the render had no mobile pass.
+    ...(layout ? { layout } : {}),
     // Queue-wait vs render-time breakdown, absent on a render-cache hit (#826).
     renderTimeMs: item.renderTimeMs,
     queueWaitMs: item.queueWaitMs,
