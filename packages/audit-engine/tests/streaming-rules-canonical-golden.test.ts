@@ -260,9 +260,10 @@ describe("runStreamingRules — canonical 518-page v1↔v2 merge gate", () => {
       // 316 -> 317 links/anchor-mismatch, 317 -> 326 the 2026-11 batch of nine rules (crawl/rendered-signal-mismatch, a11y/svg-img-alt, security/password-form-get, url/session-ids, crawl/indexable-search-results, links/click-depth, analytics/duplicate-tags, i18n/hreflang-targets, content/duplicate-content), 326 -> 327 crawl/conflicting-index-signals, 327 -> 328 content/voice-consistency,
       // 328 -> 329 security/unauthenticated-api, 329 -> 330 security/json-sensitive-fields,
       // 330 -> 331 security/exposed-files (#1932), 331 -> 332 eeat/byline-consistency (squirrelscan/repo#1364),
-      // 332 -> 333 content/stale-dated-copy, 333 -> 334 content/terminology-consistency, 334 -> 335 i18n/locale-mixing (repo#1359);
+      // 332 -> 333 content/stale-dated-copy, 333 -> 334 content/terminology-consistency, 334 -> 335 i18n/locale-mixing (repo#1359),
+      // 335 -> 336 crawl/home-page-unreachable (never fires on the synthetic site);
       // anything else means a rule id leaked in, so fix that rather than this number.
-      expect(v1.perRuleTally.length).toBe(335);
+      expect(v1.perRuleTally.length).toBe(336);
       expect(v1.perRuleTally.find((t) => t.ruleId === "security/tls-certificate")).toEqual({
         ruleId: "security/tls-certificate",
         pass: 0,
