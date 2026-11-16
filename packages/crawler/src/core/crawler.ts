@@ -1814,8 +1814,15 @@ export function createCrawler(
             // A 5xx that outlived the fetcher's retries is the page's final answer
             // (#2036). Stored as an error page so `crawl/server-errors` can report it;
             // a page that recovered on a retry never reaches here. Not counted in
-            // pagesCommitted: it is not content, and the entry retry keys on that.
-            if (error.type === "network" && error.status !== undefined && error.status >= 500) {
+            // pagesCommitted: it is not content, and the entry retry keys on that. The seed
+            // is left out: a seed that is down fails the audit with no pages, and storing it
+            // would let absence rules run against a site that was never read.
+            if (
+              error.type === "network" &&
+              error.status !== undefined &&
+              error.status >= 500 &&
+              entry.depth > 0
+            ) {
               yield* storage.upsertPage(
                 crawlId,
                 buildErrorPageRecord(entry, {

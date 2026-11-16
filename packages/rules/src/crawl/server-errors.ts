@@ -18,6 +18,11 @@ export const serverErrorsRule: Rule = {
     scope: "site",
     severity: "error",
     weight: 8,
+    checks: [
+      { name: "server-errors", outcome: "problem" },
+      { name: "server-errors", outcome: "clean", clears: ["server-errors"] },
+      { name: "server-errors", outcome: "skipped" },
+    ],
   },
 
   run(ctx: RuleContext): RuleResult {
