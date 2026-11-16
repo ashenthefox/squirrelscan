@@ -72,7 +72,9 @@ describe("runStreamingRules — canonical 518-page v1↔v2 merge gate", () => {
       // 54 -> 56 (#1765): core/meta-title, core/meta-description and links/internal-links report too short and too
       // long as separate checks, so a page inside both limits records two passes where it recorded one. More
       // passes lift the weighted overall past two more rounding boundaries. Failing pages are unchanged.
-      expect(v1.healthScore.overall).toBe(56);
+      // 56 -> 57 (repo#1360): content/truncation-artifacts passes on 500 pages, which lifts the weighted overall past one
+      // more rounding boundary. A deliberate rule addition.
+      expect(v1.healthScore.overall).toBe(57);
       // 97711 -> 98211: content/hidden-text emits one page check across the 500
       // fixture pages that have a document, and passes on every one of them. The
       // overall score is unmoved.
