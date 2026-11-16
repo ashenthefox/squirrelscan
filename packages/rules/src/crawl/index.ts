@@ -25,6 +25,7 @@ import { sitemapExistsRule } from "./sitemap-exists";
 import { sitemapLastmodChurnRule } from "./sitemap-lastmod-churn";
 import { sitemapLastmodDriftRule } from "./sitemap-lastmod-drift";
 import { sitemapValidRule } from "./sitemap-valid";
+import { serverErrorsRule } from "./server-errors";
 import { singlePageSiteRule } from "./single-page-site";
 import { soft404Rule } from "./soft-404";
 
@@ -53,6 +54,7 @@ export const rules: Rule[] = [
   soft404Rule,
   singlePageSiteRule,
   renderedSignalMismatchRule,
+  serverErrorsRule,
 ];
 
 export {
@@ -71,6 +73,7 @@ export {
   robotsMetaConflictRule,
   robotsTxtRule,
   schemaNoindexConflict,
+  serverErrorsRule,
   sitemapCoverageRule,
   sitemapDomainRule,
   sitemapExistsRule,
