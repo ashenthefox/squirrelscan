@@ -71,6 +71,7 @@ import type {
   AgentAccessData,
   RslData,
   RedirectChain,
+  RenderedRequest,
   ResourceSizeData,
   ScriptContentData,
   SitemapUrlStatusData,
@@ -3409,6 +3410,11 @@ export function runStreamingRules(
   scope?: RunnerScope,
   opts?: {
     batchSize?: number;
+    /**
+     * XHR and fetch requests rendered pages issued, from the crawler's sink (repo#4188).
+     * Fed to endpoint discovery as `render` candidates. Omitted: discovery stays static.
+     */
+    renderedRequests?: ReadonlyMap<string, readonly RenderedRequest[]>;
     hooks?: StreamPageRulesHooks;
     signal?: AbortSignal;
     /** Epoch ms after which no further page starts its rules; see {@link streamPageRules} (#1271). */
@@ -3697,6 +3703,9 @@ export function runStreamingRules(
     const endpointCollector = createEndpointCollector({
       headersOf: buildTechHeadersMap,
       entryUrl: siteDataForPageRules.baseUrl,
+      renderedRequestsOf: opts?.renderedRequests
+        ? (url) => opts.renderedRequests?.get(url)
+        : undefined,
     });
     const streamed = yield* phase("page-rules", () =>
       streamPageRules(storage, crawlId, runner, siteDataForPageRules, {
