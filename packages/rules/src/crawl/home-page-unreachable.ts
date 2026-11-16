@@ -35,11 +35,28 @@ export const homePageUnreachableRule: Rule = {
     scope: "site",
     severity: "error",
     weight: 10,
+    checks: [
+      { name: "home-page-unreachable", outcome: "problem" },
+      { name: "home-page-unreachable", outcome: "clean", clears: ["home-page-unreachable"] },
+    ],
   },
 
   run(ctx: RuleContext): RuleResult {
     const failure = ctx.site?.entryFailure;
-    if (!failure) return NOT_APPLICABLE;
+    if (!failure) {
+      // The entry URL loaded: clean, so a stored finding from an earlier audit resolves.
+      if (!ctx.site) return NOT_APPLICABLE;
+      return {
+        checks: [
+          {
+            name: "home-page-unreachable",
+            status: "pass",
+            message: "The home page loaded",
+            pageUrl: ctx.site.entryUrls?.[0] ?? ctx.site.baseUrl,
+          },
+        ],
+      };
+    }
     if ((failure.source ?? "entry") !== "entry") return NOT_APPLICABLE;
     const cause = REPORTED[failure.code];
     if (!cause) return NOT_APPLICABLE;

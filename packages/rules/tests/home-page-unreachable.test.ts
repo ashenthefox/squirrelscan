@@ -40,8 +40,11 @@ describe("crawl/home-page-unreachable", () => {
     expect(checks[0]!.details?.reason).toBe(failure.code);
   });
 
-  test("a healthy home page (no failure recorded) reports nothing", async () => {
-    expect(await run(undefined)).toEqual([]);
+  test("a healthy home page (no failure recorded) reports one clean pass", async () => {
+    const checks = await run(undefined);
+    expect(checks).toHaveLength(1);
+    expect(checks[0]!.name).toBe("home-page-unreachable");
+    expect(checks[0]!.status).toBe("pass");
   });
 
   test.each(["http_4xx", "robots", "redirect", "unknown"] as const)(
