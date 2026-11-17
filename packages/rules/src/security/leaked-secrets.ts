@@ -4416,6 +4416,8 @@ function openTagOf(el: Element): string {
 /** `secret` with every string it carries copied out of the scanned text (see {@link detached}); the record is otherwise unchanged. */
 function detachSecret(secret: LeakedSecret): LeakedSecret {
   const out: LeakedSecret = { ...secret, value: detached(secret.value) };
+  // The evidence context is sliced from the page too (repo#2215): copy it out like the value.
+  if (secret.context !== undefined) out.context = detached(secret.context);
   if (secret.extra) {
     const extra: Record<string, unknown> = { ...secret.extra };
     for (const [key, value] of Object.entries(extra)) if (typeof value === "string") extra[key] = detached(value);
