@@ -10,8 +10,10 @@
 // enters the count. Only literals in ordinary declarations do, and `var(--x)` references are
 // counted separately. A token-driven site therefore scores well however many tokens it defines.
 //
-// Coverage is partial by design today: linked stylesheet bodies are not fetched, so every
-// non-skipped result says "inline styles only" and carries `details.coverage = "inline-only"`.
+// Near-duplicates are counted from inline styles only. Linked same-site stylesheet bodies the asset
+// phase read (`ctx.site.stylesheets`, repo#1374) define the palette: a color a read stylesheet uses or
+// defines is never a one-page outlier, however few pages carry it inline. With no stylesheet read the
+// result says "inline styles only" and carries `details.coverage = "inline-only"`.
 // Alpha is ignored: rgba(0,0,0,.5) and #000 are the same hue and are clustered as one color.
 //
 // Both paths feed ONE accumulator and ONE check builder: the streaming path reads the page-time
@@ -22,7 +24,7 @@ import type { Document } from "linkedom";
 import type { CheckItem } from "@squirrelscan/core-contracts";
 import { querySelectorAllOutsideNoscript } from "@squirrelscan/utils";
 
-import type { CheckResult, Rule, RuleContext, RuleResult } from "../types";
+import type { CheckResult, Rule, RuleContext, RuleResult, StylesheetContentData } from "../types";
 
 /** Crawl-wide page floor: below this there is no site norm to judge against. */
 export const COLOR_MIN_PAGES = 10;
@@ -45,7 +47,8 @@ const MAX_STYLE_CHARS = 200_000;
 const MAX_COLORS_PER_PAGE = 200;
 const MAX_ITEMS = 10;
 const CHECK_NAME = "color-sprawl";
-const COVERAGE_NOTE = "inline styles only; linked stylesheets are not read";
+/** Most distinct colors kept from all read stylesheets together (the palette outliers are checked against). */
+const MAX_STYLESHEET_PALETTE = 2_000;
 
 export const optionsSchema = z.object({
   max_redundant: z
@@ -287,8 +290,8 @@ interface Acc {
   varRefs: number;
 }
 
-function scanCss(raw: string, acc: Acc): void {
-  const css = stripComments(raw.length > MAX_STYLE_CHARS ? raw.slice(0, MAX_STYLE_CHARS) : raw);
+function scanCss(raw: string, acc: Acc, maxChars = MAX_STYLE_CHARS, maxColors = MAX_COLORS_PER_PAGE): void {
+  const css = stripComments(raw.length > maxChars ? raw.slice(0, maxChars) : raw);
   for (const m of css.matchAll(DECL)) {
     const prop = m[1]!.toLowerCase();
     const value = m[2] ?? "";
@@ -296,13 +299,13 @@ function scanCss(raw: string, acc: Acc): void {
     if (!COLOR_PROP.test(prop)) continue;
     if (/var\(\s*--/i.test(value)) acc.varRefs += (value.match(/var\(\s*--/gi) ?? []).length;
     for (const c of literalsIn(value)) {
-      if (acc.colors.size < MAX_COLORS_PER_PAGE) acc.colors.add(c);
+      if (acc.colors.size < maxColors) acc.colors.add(c);
     }
   }
   // Token definitions are read on their own so they can be reported but never counted as use.
   for (const m of css.matchAll(/--[\w-]+\s*:\s*([^;{}]+)/g)) {
     for (const c of literalsIn(m[1] ?? "")) {
-      if (acc.tokens.size < MAX_COLORS_PER_PAGE) acc.tokens.add(c);
+      if (acc.tokens.size < maxColors) acc.tokens.add(c);
     }
   }
 }
@@ -331,6 +334,41 @@ export function extractColorUsage(doc: Document | null | undefined): ColorUsageS
     varRefs: acc.varRefs,
     linkedStylesheets: linked,
   };
+}
+
+/** What the read linked stylesheets say about the palette. */
+export interface StylesheetPalette {
+  /** Stylesheets whose body was read. */
+  read: number;
+  /** Stylesheets requested but not read (cap, size, error, non-CSS). */
+  notRead: number;
+  /** Distinct `#rrggbb` colors the read stylesheets use or define as tokens. */
+  colors: string[];
+}
+
+export const EMPTY_STYLESHEET_PALETTE: StylesheetPalette = { read: 0, notRead: 0, colors: [] };
+
+/** The palette the read stylesheet bodies define: every color they use or define as a token. */
+export function stylesheetPalette(sheets: readonly StylesheetContentData[] | undefined): StylesheetPalette {
+  if (!sheets || sheets.length === 0) return EMPTY_STYLESHEET_PALETTE;
+  const palette = new Set<string>();
+  let read = 0;
+  for (const sheet of sheets) {
+    if (typeof sheet.content !== "string") continue;
+    read += 1;
+    const acc: Acc = { colors: new Set(), tokens: new Set(), varRefs: 0 };
+    scanCss(sheet.content, acc, sheet.content.length, MAX_STYLESHEET_PALETTE);
+    for (const c of [...acc.colors, ...acc.tokens]) {
+      if (palette.size < MAX_STYLESHEET_PALETTE) palette.add(c);
+    }
+  }
+  return { read, notRead: sheets.length - read, colors: [...palette].sort() };
+}
+
+function coverageNote(sheets: StylesheetPalette): string {
+  if (sheets.read === 0) return "inline styles only; linked stylesheets are not read";
+  const unread = sheets.notRead > 0 ? `, ${sheets.notRead} not read` : "";
+  return `inline styles counted; ${sheets.read} linked stylesheet(s) read for the palette${unread}`;
 }
 
 interface ColorRollup {
@@ -410,15 +448,27 @@ function skip(message: string, details?: Record<string, unknown>): CheckResult {
 }
 
 /** Build the checks. `sitePageCount` is the crawl's page count (the norm floor reads it). */
-export function buildChecks(rollup: ColorRollup, sitePageCount: number, maxRedundant: number): CheckResult[] {
+export function buildChecks(
+  rollup: ColorRollup,
+  sitePageCount: number,
+  maxRedundant: number,
+  sheets: StylesheetPalette = EMPTY_STYLESHEET_PALETTE,
+): CheckResult[] {
+  const note = coverageNote(sheets);
+  const coverage = sheets.read > 0 ? "inline-plus-stylesheet-palette" : "inline-only";
   if (sitePageCount < COLOR_MIN_PAGES) {
     return [skip(`Only ${sitePageCount} page(s) crawled; ${COLOR_MIN_PAGES} needed to judge color consistency`)];
   }
   if (rollup.pagesWithColors === 0) {
     return [
       skip(
-        `No color declarations found in inline styles on ${rollup.pageCount} page(s); linked stylesheets are not read, so this is not a clean pass`,
-        { coverage: "inline-only", pagesWithLinkedStylesheets: rollup.pagesWithLinkedCss },
+        `No color declarations found in inline styles on ${rollup.pageCount} page(s), so this is not a clean pass (${note})`,
+        {
+          coverage,
+          pagesWithLinkedStylesheets: rollup.pagesWithLinkedCss,
+          stylesheetsRead: sheets.read,
+          stylesheetsNotRead: sheets.notRead,
+        },
       ),
     ];
   }
@@ -430,7 +480,10 @@ export function buildChecks(rollup: ColorRollup, sitePageCount: number, maxRedun
   const grayLiterals = grays.reduce((n, c) => n + c.members.length, 0);
   const grayRedundant = grayLiterals - grays.length;
   const details: Record<string, unknown> = {
-    coverage: "inline-only",
+    coverage,
+    stylesheetsRead: sheets.read,
+    stylesheetsNotRead: sheets.notRead,
+    stylesheetPaletteColors: sheets.colors.length,
     pagesWithColorDeclarations: rollup.pagesWithColors,
     pagesWithLinkedStylesheets: rollup.pagesWithLinkedCss,
     distinctColors: distinct,
@@ -457,21 +510,29 @@ export function buildChecks(rollup: ColorRollup, sitePageCount: number, maxRedun
     checks.push({
       name: "color-sprawl",
       status: redundant >= maxRedundant * 3 ? "fail" : "warn",
-      message: `${distinct} distinct colors in use, ${redundant} visually indistinguishable from another (${grayPart}limit ${maxRedundant}) (${COVERAGE_NOTE})`,
+      message: `${distinct} distinct colors in use, ${redundant} visually indistinguishable from another (${grayPart}limit ${maxRedundant}) (${note})`,
       value: redundant,
       items,
       details,
     });
   }
 
-  // A color used on exactly one page is only an outlier once enough pages declare colors to form a palette.
+  // A color used on exactly one page is only an outlier once enough pages declare colors to form a palette,
+  // and never when a read stylesheet uses or defines it (or a color indistinguishable from it).
   if (rollup.pagesWithColors >= COLOR_MIN_PAGES_WITH_COLORS) {
-    const outliers = clusters.filter((c) => c.pages.size === 1 && c.chroma >= OUTLIER_CHROMA);
+    const paletteLabs = sheets.colors.map((hex) => rgbToOklab(hexToRgb(hex)));
+    const inStylesheets = (c: Cluster) =>
+      c.members.some((hex) => {
+        const [L, a, b] = rgbToOklab(hexToRgb(hex));
+        return paletteLabs.some((p) => Math.hypot(L - p[0], a - p[1], b - p[2]) < COLOR_CLUSTER_DISTANCE);
+      });
+    const outliers = clusters.filter((c) => c.pages.size === 1 && c.chroma >= OUTLIER_CHROMA && !inStylesheets(c));
     if (outliers.length > 0) {
+      const where = sheets.read > 0 ? "on no other page and in no read stylesheet" : "on no other page";
       checks.push({
         name: "palette-outlier",
         status: "warn",
-        message: `${outliers.length} color(s) used on a single page and nowhere else in the palette (${COVERAGE_NOTE})`,
+        message: `${outliers.length} color(s) used inline on a single page and ${where} (${note})`,
         value: outliers.length,
         items: outliers.slice(0, MAX_ITEMS).map((c) => {
           const page = [...c.pages][0]!;
@@ -488,7 +549,7 @@ export function buildChecks(rollup: ColorRollup, sitePageCount: number, maxRedun
     checks.push({
       name: CHECK_NAME,
       status: "pass",
-      message: `${distinct} distinct color(s) in use, ${redundant} near-duplicate(s), within the limit of ${maxRedundant}${tokens} (${COVERAGE_NOTE})`,
+      message: `${distinct} distinct color(s) in use, ${redundant} near-duplicate(s), within the limit of ${maxRedundant}${tokens} (${note})`,
       value: redundant,
       details,
     });
@@ -502,7 +563,7 @@ export const colorSprawlRule: Rule = {
     name: "Color Sprawl",
     description: "Finds near-duplicate colors and palette outliers across the site's inline styles",
     solution:
-      "Near-identical colors (a gray at #333 on one page and #343434 on another) are almost always drift, not design. Collapse each cluster to one value and define it once as a custom property such as --gray-700, then reference it with var(). A color that only one page uses usually came from a pasted snippet or a one-off template: switch it to a palette color. Token definitions in :root are not counted, so a design system that defines a full scale and references it through var() stays clean. This rule reads inline styles only, so check linked stylesheets by hand before deleting anything. Alpha is ignored.",
+      "Near-identical colors (a gray at #333 on one page and #343434 on another) are almost always drift, not design. Collapse each cluster to one value and define it once as a custom property such as --gray-700, then reference it with var(). A color that only one page uses usually came from a pasted snippet or a one-off template: switch it to a palette color. Token definitions in :root are not counted, so a design system that defines a full scale and references it through var() stays clean. Near-duplicates are counted from inline styles only. Linked same-site stylesheets the audit read define the palette, so a color one of them uses is never called an outlier; check any stylesheet the result reports as not read by hand before deleting anything. Alpha is ignored.",
     category: "content",
     scope: "site",
     severity: "warning",
@@ -528,6 +589,8 @@ export const colorSprawlRule: Rule = {
       }
       pageCount = rollup.pageCount;
     }
-    return { checks: buildChecks(rollup, pageCount, opts.max_redundant) };
+    return {
+      checks: buildChecks(rollup, pageCount, opts.max_redundant, stylesheetPalette(ctx.site?.stylesheets)),
+    };
   },
 };

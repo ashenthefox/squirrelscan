@@ -15,16 +15,20 @@ Checks, by name:
 
 - `color-sprawl` is skipped below 10 crawled pages (`Only 6 page(s) crawled; 10 needed to judge color consistency`), and skipped when no page declares a color in an inline style.
 - `color-sprawl` warns when more colors are visually indistinguishable from another than `max_redundant` (default 6), and fails at three times the limit. Message: `47 distinct colors in use, 12 visually indistinguishable from another (31 gray(s), 9 visually indistinguishable; limit 6)`.
-- `palette-outlier` warns for a clearly chromatic color that exactly one page uses. It only runs when at least 5 pages declare colors, so there is a palette to depart from.
+- `palette-outlier` warns for a clearly chromatic color that exactly one page uses inline and no linked stylesheet the audit read uses or defines. It only runs when at least 5 pages declare colors, so there is a palette to depart from.
 - `color-sprawl` passes when none of the above applies.
 
 ## Custom properties are not punished
 
 A literal on the right-hand side of `--gray-500: #6b7280` is the design system defining its scale, not using it. Token definitions are never counted as use, and `var(--gray-500)` references are not read as the named color gray. A site that defines a full scale in `:root` and references it with `var()` throughout stays clean. The result details report `tokenColorsDefined` and `varReferences` so you can see what was attributed.
 
-## Coverage today: inline styles only
+## Coverage: inline styles, with linked stylesheets as the palette
 
-squirrel reads `<style>` blocks and `style=` attributes in each page's HTML. Linked stylesheet bodies are not fetched yet, so a color that lives only in an external stylesheet is invisible. Every result says `inline styles only; linked stylesheets are not read` and carries `details.coverage = "inline-only"`. A site that declares colors only in linked stylesheets is skipped with that reason, never reported as clean.
+Near-duplicates are counted from `<style>` blocks and `style=` attributes in each page's HTML.
+
+Linked stylesheets define the palette. squirrel reads up to 20 same-site linked stylesheets (the most widely linked first, up to 1 MB each), and every color they use or define as a custom property counts as a palette color. A brand color your stylesheet applies on every page is therefore never reported as an outlier because only one page also writes it inline. Results then say `inline styles counted; 3 linked stylesheet(s) read for the palette` (with `, 1 not read` when some could not be read) and carry `details.coverage = "inline-plus-stylesheet-palette"`, `stylesheetsRead`, `stylesheetsNotRead` and `stylesheetPaletteColors`.
+
+When no stylesheet body was read (none linked, all cross-origin, over the cap or failed), every result says `inline styles only; linked stylesheets are not read` and carries `details.coverage = "inline-only"`. A site that declares no colors inline is skipped, never reported as clean.
 
 ## How to fix it
 

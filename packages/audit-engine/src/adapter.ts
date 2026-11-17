@@ -319,6 +319,8 @@ const PRELOAD_CHUNK_FETCH_LIMIT = 20;
 
 /** The one rule that reads the page background a linked stylesheet sets (#1756). */
 const COLOR_CONTRAST_RULE_ID = "a11y/color-contrast";
+/** Reads stylesheet bodies (`ctx.site.stylesheets`) to tell palette colors from one-page outliers (repo#1377). */
+const COLOR_SPRAWL_RULE_ID = "content/color-sprawl";
 /** Same-site stylesheets read for the page background (#1756): the most widely linked first. */
 const STYLESHEET_BACKGROUND_FETCH_LIMIT = STYLESHEET_FETCH_LIMITS.MAX_STYLESHEETS_TO_FETCH;
 /** A stylesheet over this many decoded bytes is not read (#1756). */
@@ -1109,6 +1111,15 @@ export function fetchAssetsFromOccurrences(
         COLOR_CONTRAST_RULE_ID
       ],
     );
+    // Bodies are fetched when any rule that reads them is on; the background summary stays color-contrast's.
+    const probeStylesheetContent =
+      probeStylesheetBackgrounds ||
+      isRuleEnabled(
+        COLOR_SPRAWL_RULE_ID,
+        config.rules?.enable ?? [],
+        config.rules?.disable ?? [],
+        (config.rule_options as Record<string, { enabled?: boolean }> | undefined)?.[COLOR_SPRAWL_RULE_ID],
+      );
     const stylesheetTargets = Array.from(resourceOccurrences.css.entries())
       .sort((a, b) => b[1].size - a[1].size)
       .map(([url]) => url)
@@ -1216,8 +1227,8 @@ export function fetchAssetsFromOccurrences(
             maxScripts: Math.min(preloadFetchOptions.maxScripts ?? PRELOAD_CHUNK_FETCH_LIMIT, PRELOAD_CHUNK_FETCH_LIMIT),
           },
         ),
-        // Only the html/body background is kept (#1756); same egress and budget as the scripts.
-        stylesheets: probeStylesheetBackgrounds
+        // Bodies for ctx.site.stylesheets (repo#1374) and the html/body background (#1756); same egress and budget as the scripts.
+        stylesheets: probeStylesheetContent
           ? fetchScriptContents(stylesheetTargets, {
               ...nonStoreScriptOptions,
               fetchAll: true,
@@ -1501,9 +1512,9 @@ export function fetchAssetsFromOccurrences(
       ...(resourceOccurrences.scripts.size > ruleScripts.length
         ? { scriptsNotRead: resourceOccurrences.scripts.size - ruleScripts.length }
         : {}),
+      ...(probeStylesheetContent ? { stylesheets: resourceResults.stylesheets.map(toStylesheetContentData) } : {}),
       ...(probeStylesheetBackgrounds
         ? {
-            stylesheets: resourceResults.stylesheets.map(toStylesheetContentData),
             stylesheetBackgrounds: resourceResults.stylesheets.map((fetch) => {
               const readable = fetch.content !== null && !/html/i.test(fetch.contentType ?? "");
               const other = readable ? stylesheetBackgroundSelectorsOf(fetch.content as string) : null;

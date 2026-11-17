@@ -9,7 +9,7 @@ import { parsePage } from "@squirrelscan/parser";
 
 import { buildCollectedPageSignal } from "../src/collected-signals";
 import { colorSprawlRule, extractColorUsage, parseColor } from "../src/content/color-sprawl";
-import type { RuleContext } from "../src/types";
+import type { RuleContext, StylesheetContentData } from "../src/types";
 
 const BASE = {
   page: { url: "https://example.com/", html: "", statusCode: 200, loadTime: 0, headers: {} },
@@ -30,23 +30,36 @@ function html(s: Spec): string {
 
 const parse = (s: Spec) => parsePage(html(s), s.url);
 
-function legacy(specs: Spec[], options: Record<string, unknown> = {}): RuleContext {
+function legacy(specs: Spec[], options: Record<string, unknown> = {}, stylesheets?: StylesheetContentData[]): RuleContext {
   return {
     ...BASE,
     options,
-    site: { pages: specs.map((s) => ({ url: s.url, statusCode: 200, headers: {}, parsed: parse(s) })) },
+    site: {
+      pages: specs.map((s) => ({ url: s.url, statusCode: 200, headers: {}, parsed: parse(s) })),
+      ...(stylesheets ? { stylesheets } : {}),
+    },
   } as unknown as RuleContext;
 }
 
-function streaming(specs: Spec[], options: Record<string, unknown> = {}): RuleContext {
+function streaming(
+  specs: Spec[],
+  options: Record<string, unknown> = {},
+  stylesheets?: StylesheetContentData[],
+): RuleContext {
   const pages = specs.map((s) => buildCollectedPageSignal({ url: s.url, parsed: parse(s) }));
   const siteQuery = { pageCount: () => specs.length } as unknown as SiteQuery;
-  return { ...BASE, options, collectedSignals: { pages }, siteQuery } as unknown as RuleContext;
+  return {
+    ...BASE,
+    options,
+    collectedSignals: { pages },
+    siteQuery,
+    site: { pages: [], ...(stylesheets ? { stylesheets } : {}) },
+  } as unknown as RuleContext;
 }
 
-function both(specs: Spec[], options: Record<string, unknown> = {}) {
-  const a = colorSprawlRule.run(legacy(specs, options)) as { checks: any[] };
-  const b = colorSprawlRule.run(streaming(specs, options)) as { checks: any[] };
+function both(specs: Spec[], options: Record<string, unknown> = {}, stylesheets?: StylesheetContentData[]) {
+  const a = colorSprawlRule.run(legacy(specs, options, stylesheets)) as { checks: any[] };
+  const b = colorSprawlRule.run(streaming(specs, options, stylesheets)) as { checks: any[] };
   expect(b.checks).toEqual(a.checks);
   return a.checks;
 }
@@ -151,5 +164,47 @@ describe("content/color-sprawl", () => {
     const u = extractColorUsage(parse({ url: "https://example.com/", style: ":root{--x1color:red;--bg-color:#123456}" }).document);
     expect(u.colors).toEqual([]);
     expect(u.tokenColors).toBe(2);
+  });
+
+  describe("linked stylesheets define the palette (ctx.site.stylesheets)", () => {
+    const outlierSpecs = () =>
+      pages(12, (i) => ({ link: true, style: i === 7 ? "p{color:#111111} b{color:#e91e63}" : "p{color:#111111}" }));
+
+    test("a brand color a read stylesheet uses on every page is not an outlier", () => {
+      const sheets = [{ url: "https://example.com/a.css", content: ".brand{color:#e91e63}" }];
+      const c = both(outlierSpecs(), {}, sheets);
+      expect(c.find((x) => x.name === "palette-outlier")).toBeUndefined();
+      expect(c[0].status).toBe("pass");
+      expect(c[0].details.coverage).toBe("inline-plus-stylesheet-palette");
+      expect(c[0].details.stylesheetsRead).toBe(1);
+      expect(c[0].message).toContain("1 linked stylesheet(s) read for the palette");
+      expect(c[0].message).not.toContain("inline styles only");
+    });
+
+    test("a token a stylesheet defines, or a color indistinguishable from one, is palette too", () => {
+      const sheets = [{ url: "https://example.com/a.css", content: ":root{--brand:#e91e64}" }];
+      const c = both(outlierSpecs(), {}, sheets);
+      expect(c.find((x) => x.name === "palette-outlier")).toBeUndefined();
+    });
+
+    test("a color no read stylesheet carries is still an outlier, and unread sheets are reported", () => {
+      const sheets = [
+        { url: "https://example.com/a.css", content: ".x{color:#0057b8}" },
+        { url: "https://example.com/big.css" },
+      ];
+      const c = both(outlierSpecs(), {}, sheets);
+      const out = c.find((x) => x.name === "palette-outlier")!;
+      expect(out.status).toBe("warn");
+      expect(out.message).toContain("on no other page and in no read stylesheet");
+      expect(out.message).toContain("1 linked stylesheet(s) read for the palette, 1 not read");
+      expect(out.details.stylesheetsNotRead).toBe(1);
+    });
+
+    test("with no stylesheet body read the result still says inline styles only", () => {
+      const c = both(outlierSpecs(), {}, [{ url: "https://example.com/a.css" }]);
+      const out = c.find((x) => x.name === "palette-outlier")!;
+      expect(out.message).toContain("inline styles only; linked stylesheets are not read");
+      expect(out.details.coverage).toBe("inline-only");
+    });
   });
 });

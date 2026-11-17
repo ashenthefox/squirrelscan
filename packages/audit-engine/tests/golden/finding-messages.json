@@ -524,9 +524,9 @@
   ]
  },
  "content/color-sprawl": {
-  "digest": "49952028209124",
+  "digest": "183425131200754",
   "lines": [
-   "color-sprawl|skipped|No color declarations found in inline styles on # page(s); linked stylesheets are not read, so this is not a clean pass||"
+   "color-sprawl|skipped|No color declarations found in inline styles on # page(s), so this is not a clean pass (inline styles only; linked stylesheets are not read)||"
   ]
  },
  "content/common-misspellings": {
