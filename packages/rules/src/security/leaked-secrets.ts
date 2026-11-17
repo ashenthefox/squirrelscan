@@ -2592,7 +2592,11 @@ export const EVIDENCE_CONTEXT_RADIUS = 120;
 
 // A long token-shaped run or the credentials of a URL: whatever else sits near a match could itself be a secret.
 const NEARBY_TOKEN_RE = /[A-Za-z0-9_\-+/=.]{20,}/g;
+const NEARBY_TOKEN_CHAR_RE = /[A-Za-z0-9_\-+/=.]/;
 const URL_CREDENTIALS_RE = /(:\/\/)[^\s/@"'<>]+@/g;
+// A quoted string literal this long near a match is masked whatever its shape: a password or short token fits in it.
+const NEARBY_LITERAL_MIN = 8;
+const QUOTE_CHARS = ["\"", "'", "`"] as const;
 
 function redactNearby(text: string): string {
   return text
@@ -2601,17 +2605,90 @@ function redactNearby(text: string): string {
 }
 
 /**
- * The redacted evidence context of a match at `offset` in `content`: the text either side with other token-shaped runs
- * masked, and the match itself masked exactly as its item id is. Undefined when the match is not at that offset.
+ * The [start, end) spans of the string literals in `text`, read outward from the match: forward for the text after it,
+ * backward for the text before it. `openAt` is the quote the reading starts inside, if any. A literal left open at the far
+ * edge of the window runs to that edge.
+ */
+function literalSpans(text: string, backward: boolean, openAt: string | undefined): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  const n = text.length;
+  const at = (k: number) => (backward ? n - 1 - k : k);
+  const escaped = (k: number) => {
+    const i = at(k);
+    let slashes = 0;
+    for (let j = i - 1; j >= 0 && text[j] === "\\"; j--) slashes++;
+    return slashes % 2 === 1;
+  };
+  let open = openAt;
+  let from = 0;
+  for (let k = 0; k < n; k++) {
+    const ch = text[at(k)];
+    if (!QUOTE_CHARS.includes(ch as (typeof QUOTE_CHARS)[number]) || escaped(k)) continue;
+    if (open === undefined) {
+      open = ch;
+      from = k + 1;
+    } else if (ch === open) {
+      spans.push([from, k]);
+      open = undefined;
+    }
+  }
+  if (open !== undefined) spans.push([from, n]);
+  return backward ? spans.map(([s, e]) => [n - e, n - s]) : spans;
+}
+
+/**
+ * `text` with every quoted literal of NEARBY_LITERAL_MIN or more characters masked, and the URL credentials and long token
+ * runs between them masked too. When the match sits directly inside a literal opened by `openQuote`, the reading starts in
+ * that literal; otherwise which quotes open and which close is unknown from the window alone, so every reading is masked.
+ */
+function redactSide(text: string, backward: boolean, openQuote: string | undefined): string {
+  const starts = openQuote === undefined ? [undefined, ...QUOTE_CHARS] : [openQuote];
+  const spans = starts
+    .flatMap((q) => literalSpans(text, backward, q))
+    .filter(([s, e]) => e - s >= NEARBY_LITERAL_MIN)
+    .sort((a, b) => a[0] - b[0]);
+  const merged: Array<[number, number]> = [];
+  for (const [s, e] of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+  let out = "";
+  let pos = 0;
+  for (const [s, e] of merged) {
+    out += redactNearby(text.slice(pos, s)) + maskSecret(text.slice(s, e));
+    pos = e;
+  }
+  return out + redactNearby(text.slice(pos));
+}
+
+/**
+ * The redacted evidence context of a match at `offset` in `content`: the text either side with other quoted literals and
+ * token-shaped runs masked, and the match itself masked exactly as its item id is. A token run the window cuts off at either
+ * edge is dropped, so no fragment of it shows unmasked. Undefined when the match is not at that offset.
  */
 export function evidenceContext(content: string, offset: number, length: number, value: string): string | undefined {
   if (offset < 0 || length <= 0 || content.slice(offset, offset + Math.min(length, value.length)) !== value.slice(0, length)) {
     return undefined;
   }
-  const before = content.slice(Math.max(0, offset - EVIDENCE_CONTEXT_RADIUS), offset);
-  const after = content.slice(offset + length, offset + length + EVIDENCE_CONTEXT_RADIUS);
+  const isToken = (i: number) => i >= 0 && i < content.length && NEARBY_TOKEN_CHAR_RE.test(content[i] ?? "");
+  const start = Math.max(0, offset - EVIDENCE_CONTEXT_RADIUS);
+  const end = Math.min(content.length, offset + length + EVIDENCE_CONTEXT_RADIUS);
+  let before = content.slice(start, offset);
+  let after = content.slice(offset + length, end);
+  if (isToken(start - 1) && isToken(start)) {
+    const cut = [...before].findIndex((ch) => !NEARBY_TOKEN_CHAR_RE.test(ch));
+    before = cut < 0 ? "" : before.slice(cut + 1);
+  }
+  if (isToken(end) && isToken(end - 1)) {
+    let cut = after.length - 1;
+    while (cut >= 0 && NEARBY_TOKEN_CHAR_RE.test(after[cut] ?? "")) cut--;
+    after = cut < 0 ? "" : after.slice(0, cut);
+  }
+  const prev = content[offset - 1];
+  const openQuote = QUOTE_CHARS.find((q) => q === prev);
   const flat = (t: string) => t.replace(/\s+/g, " ");
-  return `${redactNearby(flat(before))}${maskSecret(value)}${redactNearby(flat(after))}`;
+  return `${redactSide(flat(before), true, openQuote)}${maskSecret(value)}${redactSide(flat(after), false, openQuote)}`;
 }
 
 function maskSecret(value: string): string {

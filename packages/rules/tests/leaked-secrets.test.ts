@@ -1270,3 +1270,58 @@ describe("evidence context (repo#2215)", () => {
     expect(stripe?.sourceUrl).toBe("https://example.com/a.js");
   });
 });
+
+describe("evidence context redacts every nearby secret (repo#2215)", () => {
+  const key = ["sk", "live", "abcdefghijklmnopqrstuvwx12"].join("_"); // assembled so the fixture is not a literal secret
+
+  test("a short quoted password beside the match is masked", async () => {
+    const { evidenceContext } = await import("../src/security/leaked-secrets");
+    const pw = ["hunter", "2pw!"].join("");
+    const content = `var k="${key}"; var pw="${pw}"; var n="ab";`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).toBeDefined();
+    expect(ctx).not.toContain(pw);
+    expect(ctx).toContain(`var pw="hunt******"`);
+    expect(ctx).toContain(`var k="sk_liv`);
+    expect(ctx).toContain(`var n="ab"`);
+  });
+
+  test("a quoted literal before the match is masked and the code between literals is kept", async () => {
+    const { evidenceContext } = await import("../src/security/leaked-secrets");
+    const pw = ["pass", " word", " 99"].join("");
+    const content = `login('${pw}'); stripe("${key}")`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).not.toContain(pw);
+    expect(ctx?.startsWith(`login('pass********'); stripe("sk_liv`)).toBe(true);
+  });
+
+  test("a token run cut off at either window edge is dropped, not shown in part", async () => {
+    const { evidenceContext, EVIDENCE_CONTEXT_RADIUS } = await import("../src/security/leaked-secrets");
+    const left = "L".repeat(10) + "0123456789abcdefghij"; // 30 token chars, only the tail inside the window
+    const right = "zyxwvutsrqponmlkjihg" + "R".repeat(10);
+    const fill = (n: number) => " ".repeat(n);
+    const content = `${left}${fill(EVIDENCE_CONTEXT_RADIUS - 15)}=${key};${fill(EVIDENCE_CONTEXT_RADIUS - 15)}${right}`;
+    const at = content.indexOf(key);
+    const ctx = evidenceContext(content, at, key.length, key);
+    expect(ctx).toBeDefined();
+    for (const frag of ["fghij", "abcde", "zyxwv", "rqpon"]) expect(ctx).not.toContain(frag);
+    expect(ctx).toBe(` =sk_liv********************wx12; `);
+  });
+
+  test("a literal cut off at the window edge is masked up to that edge", async () => {
+    const { evidenceContext, EVIDENCE_CONTEXT_RADIUS } = await import("../src/security/leaked-secrets");
+    const secretTail = "my secret pass!";
+    const content = `x="${"a".repeat(EVIDENCE_CONTEXT_RADIUS)} ${secretTail}"; k="${key}"`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).not.toContain("secret pass");
+    expect(ctx).toContain(`"; k="sk_liv`);
+  });
+
+  test("when the match is not directly quoted, both readings of the nearby quotes are masked", async () => {
+    const { evidenceContext } = await import("../src/security/leaked-secrets");
+    const pw = ["hunter", "2pw"].join("");
+    const content = `u("https://a.example/?k=${key}&x=1", pw="${pw}")`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).not.toContain(pw);
+  });
+});
