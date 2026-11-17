@@ -22,7 +22,7 @@ import {
   type GramIndex,
 } from "../shared/literal-prefilter";
 import { jwtMatchIsSuspect, refineFinding, type Confidence, type FindingExtra } from "./secrets/confidence";
-import { decodeForLocation, scanBase64Blobs, type ReportedLocation } from "./secrets/decode";
+import { decodeForLocation, decodeHtmlEntities, scanBase64Blobs, type ReportedLocation } from "./secrets/decode";
 
 import { sharedRegex } from "../shared-regex";
 import { blankedOffsets } from "../shared/inline-script-text";
@@ -4478,6 +4478,9 @@ function scanPageInto(sink: FindingSink, doc: NonNullable<ParsedPage["document"]
   const keep = " ".repeat(BLANK_KEEP);
   const blanks = new Map<Element, string>();
   for (const { script, text } of inline) {
+    // The inline pass decodes JS and percent escapes only; the HTML pass also decodes HTML entities. A script whose text
+    // an entity decode would change keeps its text in the HTML pass, so a value visible only after that decode is found.
+    if (decodeHtmlEntities(text) !== text) continue;
     if (text.length <= BLANK_KEEP) blanks.set(script, " ".repeat(text.length));
     else {
       blanks.set(script, keep);

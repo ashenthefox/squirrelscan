@@ -71,4 +71,14 @@ describe("the HTML pass with scanned script bodies blanked and shortened (#1864)
     // No entities or escapes outside the script, so the offset is the value's index in the page as serialised.
     expect(finding?.offset).toBe(doc.toString().indexOf(key));
   });
+  test("a script whose secret shows only after an HTML-entity decode keeps its text in the HTML pass", () => {
+    const next = lcg(11);
+    const key = j("sk_", "live_") + run(next, 24);
+    // The inline pass decodes JS and percent escapes, not entities: only the HTML pass can read this value.
+    const encoded = [...key].map((c) => `&#${c.charCodeAt(0)};`).join("");
+    const html = `<!doctype html><html><body><script>var k="${encoded}";</script></body></html>`;
+    const doc = parsePage(html, URL_).document!;
+    const found = scanPageForSecrets(doc, URL_);
+    expect(found.some((s) => s.value === key && s.location.startsWith("html"))).toBe(true);
+  });
 });
