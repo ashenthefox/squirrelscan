@@ -17,6 +17,10 @@ How it works:
   `bun run changelog` prints them as the next release's section, and the release bump PR
   assembles them into a new `## vX.Y.Z` section and deletes them.
 
+### Changed
+
+- Script-heavy pages audit faster (squirrelscan/repo#1864): each inline script's text is read once per rule. `security/leaked-secrets` no longer scans every inline script a second time inside the page's HTML, which takes its per-page cost on a 1 MB storefront page from about 32 to 17 ms. A value in an inline script is reported only at `inline-script` (a public Shopify token on a Shopify page used to show as `html`), and `meta.occurrences` no longer lists a duplicate `html` entry for it. `a11y/skip-link` and `perf/js-libraries` no longer serialise or search the whole page for what they already read; their results are unchanged.
+
 ## v0.0.183 (2026-11-17)
 
 Four new probing security rules check what a site hands to anyone who asks: open JSON APIs, sensitive JSON fields, exposed files such as `.env` and `.git`, and auth endpoints that leak the user record. Four more catch mixed locale conventions, inconsistent terminology, copy whose own date has passed and broken byline conventions. Large audits peak at about half the memory, and a probe that never got an answer is now reported as not checked instead of clean. This release adds 8 rules: 336 rules on by default, 28 of them in Security, 29 in Content, 16 in E-E-A-T and 4 in Internationalization.
@@ -42,8 +46,6 @@ Four new probing security rules check what a site hands to anyone who asks: open
 - `SQUIRREL_STREAM_PHASE_MEM=1` now also prints a line at the end of every audit phase, and on Linux each line shows the peak resident size since the previous one. New `SQUIRREL_HEAP_SNAPSHOT_DIR` writes a heap snapshot at those boundaries for diagnosing memory use. See [Debugging](https://docs.squirrelscan.com/cli/debug).
 - When a report cannot be published because it is over the 1MB publish limit, the CLI no longer suggests auditing fewer pages (published reports are capped to fit, so that advice was wrong). It now says the report could not be capped to fit and that the full detail stays in your local project (`squirrel report`).
 - Release binaries are built with `NODE_ENV` pinned to `"production"` (`bun build --production --define process.env.NODE_ENV='"production"'`), so test-only knobs gated on `NODE_ENV === "test"` are compiled out whatever the build environment exports (squirrelscan/squirrelscan#1854, #1855). Bundled React now uses its production build for the HTML report; report output is unchanged.
-
-- Script-heavy pages audit faster (squirrelscan/repo#1864): each inline script's text is read once per rule. `security/leaked-secrets` no longer scans every inline script a second time inside the page's HTML, which takes its per-page cost on a 1 MB storefront page from about 32 to 17 ms. A value in an inline script is reported only at `inline-script` (a public Shopify token on a Shopify page used to show as `html`), and `meta.occurrences` no longer lists a duplicate `html` entry for it. `a11y/skip-link` and `perf/js-libraries` no longer serialise or search the whole page for what they already read; their results are unchanged.
 
 ### Fixed
 
