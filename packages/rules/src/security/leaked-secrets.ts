@@ -2590,10 +2590,16 @@ const REVENUECAT_CONTEXT_REACH = 200;
 /** Characters of source text kept on each side of a match in a finding's `context`. */
 export const EVIDENCE_CONTEXT_RADIUS = 120;
 
-// A long token-shaped run or the credentials of a URL: whatever else sits near a match could itself be a secret.
-const NEARBY_TOKEN_RE = /[A-Za-z0-9_\-+/=.]{20,}/g;
-const NEARBY_TOKEN_CHAR_RE = /[A-Za-z0-9_\-+/=.]/;
+// A long token-shaped run, the credentials of a URL or an unquoted assigned value: whatever else sits near a match could
+// itself be a secret. A token run is any run of characters a password can hold (`@ ! # $ & %` included), stopped only by
+// whitespace, quotes and code punctuation.
+const NEARBY_TOKEN_RE = /[^\s"'`<>(){}[\];,]{20,}/g;
+const NEARBY_TOKEN_CHAR_RE = /[^\s"'`<>(){}[\];,]/;
 const URL_CREDENTIALS_RE = /(:\/\/)[^\s/@"'<>]+@/g;
+// The unquoted value after `=` or `:` (`DB_PASSWORD=p@ssw0rd!`), but not the `//` of a URL scheme or the rest of `==`.
+const NEARBY_ASSIGNED_RE = /([=:]\s*)(?!\/\/)([^\s"'`<>(){}[\];,=:][^\s"'`<>(){}[\];,]*)/g;
+// An unquoted value this long is masked; under NEARBY_LITERAL_MIN it is starred out entirely.
+const NEARBY_ASSIGNED_MIN = 4;
 // A quoted string literal this long near a match is masked whatever its shape: a password or short token fits in it.
 const NEARBY_LITERAL_MIN = 8;
 const QUOTE_CHARS = ["\"", "'", "`"] as const;
@@ -2601,6 +2607,10 @@ const QUOTE_CHARS = ["\"", "'", "`"] as const;
 function redactNearby(text: string): string {
   return text
     .replace(URL_CREDENTIALS_RE, "$1****@")
+    .replace(NEARBY_ASSIGNED_RE, (whole, op: string, val: string) => {
+      if (val.length < NEARBY_ASSIGNED_MIN) return whole;
+      return op + (val.length < NEARBY_LITERAL_MIN ? "*".repeat(val.length) : maskSecret(val));
+    })
     .replace(NEARBY_TOKEN_RE, (run) => maskSecret(run));
 }
 

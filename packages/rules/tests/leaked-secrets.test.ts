@@ -1324,4 +1324,37 @@ describe("evidence context redacts every nearby secret (repo#2215)", () => {
     const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
     expect(ctx).not.toContain(pw);
   });
+
+  test("an unquoted password beside a quoted match is masked, punctuation and all", async () => {
+    const { evidenceContext } = await import("../src/security/leaked-secrets");
+    for (const pw of [["p@ss", "w0rd!"].join(""), ["a#b$", "c&d!e%f"].join(""), ["s3cr", "et"].join(""), ["p@ss", "w0rd!x".repeat(4)].join("")]) {
+      const content = `STRIPE_KEY="${key}"\nDB_PASSWORD=${pw}\nDEBUG=1`;
+      const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+      expect(ctx).toBeDefined();
+      expect(ctx).not.toContain(pw);
+      expect(ctx).not.toContain(pw.slice(4));
+      expect(ctx).toContain(`STRIPE_KEY="sk_liv`);
+      expect(ctx).toContain("DEBUG=1");
+    }
+  });
+
+  test("an unquoted password before the match and in a query string is masked", async () => {
+    const { evidenceContext } = await import("../src/security/leaked-secrets");
+    const pw = ["hun", "ter2!@#"].join("");
+    const content = `password: ${pw} key: "${key}" u=https://a.example/?pw=${pw}&x=1`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).not.toContain(pw);
+    expect(ctx).not.toContain(pw.slice(3));
+    expect(ctx).toContain("password: ");
+    expect(ctx).toContain(`key: "sk_liv`);
+  });
+
+  test("a punctuated run cut off at the window edge is dropped", async () => {
+    const { evidenceContext, EVIDENCE_CONTEXT_RADIUS } = await import("../src/security/leaked-secrets");
+    const tail = "!@#$%^&*p@ss";
+    const content = `${"x".repeat(10)}${tail}${" ".repeat(EVIDENCE_CONTEXT_RADIUS - tail.length)}${key}`;
+    const ctx = evidenceContext(content, content.indexOf(key), key.length, key);
+    expect(ctx).not.toContain("p@ss");
+    expect(ctx).not.toContain("!@#");
+  });
 });
