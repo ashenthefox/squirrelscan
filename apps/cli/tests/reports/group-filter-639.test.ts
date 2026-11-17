@@ -83,6 +83,19 @@ describe("report --group filter (#626)", () => {
     expect(parseGroupArg("bogus").invalid).toEqual(["bogus"]);
   });
 
+  test("inherited Object.prototype names are not valid groups", () => {
+    expect(parseGroupArg("constructor")).toEqual({
+      groups: [],
+      invalid: ["constructor"],
+    });
+    expect(parseGroupArg("__proto__").invalid).toEqual(["__proto__"]);
+    const r = expandGroupPatterns(["group:toString"]);
+    expect(r.errors).toHaveLength(1);
+    expect(r.errors[0]).toContain(
+      "Valid groups: seo, performance, security, ai"
+    );
+  });
+
   test("--group is in shell completions", () => {
     for (const shell of ["bash", "zsh", "fish"] as const) {
       const r = generateCompletion(shell);
