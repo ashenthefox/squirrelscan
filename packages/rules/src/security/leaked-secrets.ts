@@ -2546,6 +2546,8 @@ const AWS_PAIR_REACH = 300;
 // Any 40-character base64-alphabet token near the id may be its secret key, keyed or not
 // (`["AKIA...", "<40>"]`, `{id, secret}`).
 const AWS_SECRET_NEAR_RE = /(?<![A-Za-z0-9/+_-])[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+=_-])/;
+// The access key id's shape, unanchored: whether a body holds one at all (the page HTML pass, #1864).
+const AWS_KEY_ID_SHAPE_RE = /(?:A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}/;
 
 // Browser SDKs whose init call takes a project key that is public by design
 // (Bugsnag's notifier API key, Amplitude's API key). The key counts only when
@@ -4474,20 +4476,31 @@ function scanPageInto(sink: FindingSink, doc: NonNullable<ParsedPage["document"]
   }
 
   // A long body keeps BLANK_KEEP spaces and loses the rest (see BLANK_KEEP); `cut` records what each lost, in page order.
-  const cut: number[] = [];
   const keep = " ".repeat(BLANK_KEEP);
-  const blanks = new Map<Element, string>();
-  for (const { script, text } of inline) {
-    // The inline pass decodes JS and percent escapes only; the HTML pass also decodes HTML entities. A script whose text
-    // an entity decode would change keeps its text in the HTML pass, so a value visible only after that decode is found.
-    if (decodeHtmlEntities(text) !== text) continue;
-    if (text.length <= BLANK_KEEP) blanks.set(script, " ".repeat(text.length));
-    else {
-      blanks.set(script, keep);
-      cut.push(text.length - BLANK_KEEP);
+  const serializeBlanked = (keepsText: (text: string) => boolean) => {
+    const cut: number[] = [];
+    const blanks = new Map<Element, string>();
+    for (const { script, text } of inline) {
+      // The inline pass decodes JS and percent escapes only; the HTML pass also decodes HTML entities. A script whose
+      // text an entity decode would change keeps its text in the HTML pass, so a value visible only after that decode is
+      // found.
+      if (decodeHtmlEntities(text) !== text || keepsText(text)) continue;
+      if (text.length <= BLANK_KEEP) blanks.set(script, " ".repeat(text.length));
+      else {
+        blanks.set(script, keep);
+        cut.push(text.length - BLANK_KEEP);
+      }
     }
-  }
-  const html = serializeChildren(doc, { replaceText: blanks });
+    return { html: serializeChildren(doc, { replaceText: blanks }), cut };
+  };
+  // An AWS access key id is judged by whether a 40-character secret sits within AWS_PAIR_REACH of it, and the pair can
+  // straddle a script's edge: the id in one script and the secret in the next, or in the markup beside it. Only the
+  // HTML pass sees both sides, so on a page that holds an id anywhere, a script holding an id or a secret-shaped value
+  // keeps its text there, and the id keeps the confidence the whole page gives it.
+  const pairSide = (text: string) => AWS_KEY_ID_SHAPE_RE.test(text) || AWS_SECRET_NEAR_RE.test(text);
+  const scriptHasKeyId = inline.some(({ text }) => AWS_KEY_ID_SHAPE_RE.test(text));
+  let { html, cut } = serializeBlanked(scriptHasKeyId ? pairSide : () => false);
+  if (!scriptHasKeyId && AWS_KEY_ID_SHAPE_RE.test(html)) ({ html, cut } = serializeBlanked(pairSide));
 
   // Whether the page loads from the Shopify CDN, as the whole-document pass always judged it: on the page's HTML,
   // scripts included. The markup is asked first, which on a Shopify page carries the CDN's stylesheets and script

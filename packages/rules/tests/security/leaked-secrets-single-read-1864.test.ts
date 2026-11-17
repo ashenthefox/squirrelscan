@@ -1,6 +1,7 @@
 // #1864: the page's HTML pass reads the page with each scanned inline script's text blanked, and a long body shortened
 // to BLANK_KEEP spaces. Its findings must be exactly those of a pass over the page with every scanned script's text
-// replaced by the same number of spaces: same values, classifications and offsets.
+// replaced by the same number of spaces: same values, classifications and offsets. A script that holds an entity, or
+// either half of an AWS key pair on a page that holds an id, keeps its text in the HTML pass.
 // Values are built at runtime from parts; no secret-shaped literal is committed.
 
 import { describe, expect, test } from "bun:test";
@@ -80,5 +81,45 @@ describe("the HTML pass with scanned script bodies blanked and shortened (#1864)
     const doc = parsePage(html, URL_).document!;
     const found = scanPageForSecrets(doc, URL_);
     expect(found.some((s) => s.value === key && s.location.startsWith("html"))).toBe(true);
+  });
+
+  // The pair check looks AWS_PAIR_REACH (300) characters either side of an access key id; the HTML pass is the only one
+  // that sees across a script's edge, so blanking a script must not hide the other half of the pair.
+  // An id whose account part decodes (a legacy `AKIAI` id is medium on its own) and a secret-shaped value.
+  const AWS_ID = j("AK", "IA", "QWERTYUZ", "XCVBNMLK");
+  const AWS_SECRET = j("aB3dE5gH7jK9mN1p", "Q3sT5vW7yZ9bC1eF", "3hJ5kL7n");
+  const awsIds = (found: LeakedSecret[], id: string) => {
+    const ids = found.filter((s) => s.value === id && s.type === "AWS Access Key ID");
+    expect(ids.length).toBeGreaterThan(0);
+    return ids;
+  };
+
+  test("an AWS key id in one script and its secret in the next keep the pair's confidence", () => {
+    const id = AWS_ID;
+    const secret = AWS_SECRET;
+    const html = `<!doctype html><html><body><script>var awsId="${id}";</script><script>var awsSecret="${secret}";</script></body></html>`;
+    const doc = parsePage(html, URL_).document!;
+    const ids = awsIds(scanPageForSecrets(doc, URL_), id);
+    const fromHtml = ids.find((s) => s.location.startsWith("html"));
+    expect(fromHtml?.confidence).toBe("high");
+    expect(fromHtml?.extra?.pair).toBeUndefined();
+  });
+
+  test("an AWS key id in the markup and its secret in a script keep the pair's confidence", () => {
+    const id = AWS_ID;
+    const secret = AWS_SECRET;
+    const html = `<!doctype html><html><body><div data-aws-id="${id}"></div><script>var awsSecret="${secret}";</script></body></html>`;
+    const doc = parsePage(html, URL_).document!;
+    const ids = awsIds(scanPageForSecrets(doc, URL_), id);
+    expect(ids.every((s) => s.extra?.pair === undefined)).toBe(true);
+    expect(ids.some((s) => s.confidence === "high")).toBe(true);
+  });
+
+  test("an AWS key id with no secret anywhere near is still the public half at medium", () => {
+    const id = AWS_ID;
+    const html = `<!doctype html><html><body><script>var awsId="${id}";</script><script>function f(a){return a+1}</script></body></html>`;
+    const doc = parsePage(html, URL_).document!;
+    const ids = awsIds(scanPageForSecrets(doc, URL_), id);
+    expect(ids.every((s) => s.confidence === "medium" && typeof s.extra?.pair === "string")).toBe(true);
   });
 });

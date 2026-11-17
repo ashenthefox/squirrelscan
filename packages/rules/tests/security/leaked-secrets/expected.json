@@ -1737,15 +1737,19 @@
     {"type":"Google OAuth Client Secret","confidence":"high","publicByDesign":false,"location":"inline-script","masked":"GOCSPX********************uzEd"}
   ],
   "aws-access-key-id@inline-config-object": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIAHU**********36NP","extra":{"accountId":"525022352728","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIAHU**********36NP","extra":{"accountId":"525022352728","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@window-env": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIACX**********GE65","extra":{"accountId":"188011953530","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIACX**********GE65","extra":{"accountId":"188011953530","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@next-data": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIARR**********X4FF","extra":{"accountId":"105376787024","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIARR**********X4FF","extra":{"accountId":"105376787024","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@nuxt-payload": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIA6A**********JXDD","extra":{"accountId":"964016018823","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIA6A**********JXDD","extra":{"accountId":"964016018823","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@html-comment": [
@@ -1758,6 +1762,7 @@
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIALI**********PASU","extra":{"accountId":"774952249462","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@json-ld": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIA5R**********CBHB","extra":{"accountId":"929967987873","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIA5R**********CBHB","extra":{"accountId":"929967987873","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@external-bundle": [
@@ -1788,6 +1793,7 @@
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIASR**********LEL2","extra":{"accountId":"175127382430","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-access-key-id@url-encoded-inline-settings": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIAKE**********JAGD","extra":{"accountId":"696766790006","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIAKE**********JAGD","extra":{"accountId":"696766790006","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "aws-secret-access-key@inline-config-object": [
@@ -5419,12 +5425,16 @@
     {"type":"DigitalOcean Spaces Key","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"DOVQOQ**************XB5F"}
   ],
   "real:aws-key-id-in-a-presigned-url-is-informational": [
+    {"type":"AWS Access Key ID","confidence":"info","publicByDesign":false,"location":"html","masked":"AKIAAM**********7D4X","extra":{"accountId":"027483721190","prefix":"AKIA","presigned":true}},
     {"type":"AWS Access Key ID","confidence":"info","publicByDesign":false,"location":"inline-script","masked":"AKIAAM**********7D4X","extra":{"accountId":"027483721190","prefix":"AKIA","presigned":true}}
   ],
   "real:aws-key-id-under-a-key-with-no-secret-is-medium": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIAZ5**********CCWH","extra":{"accountId":"680987214702","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIAZ5**********CCWH","extra":{"accountId":"680987214702","prefix":"AKIA","pair":"no 40-character secret-shaped value within 300 characters: probably the public half of the pair; the secret may sit elsewhere"}}
   ],
   "real:aws-key-id-beside-its-secret-is-high-and-the-secret-critical": [
+    {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"html","masked":"AKIAQ6**********U6MP","extra":{"accountId":"064913771770","prefix":"AKIA"}},
+    {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"html","masked":"aws_se********************xRv\""},
     {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"inline-script","masked":"AKIAQ6**********U6MP","extra":{"accountId":"064913771770","prefix":"AKIA"}},
     {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"aws_se********************xRv\""}
   ],
@@ -5472,6 +5482,8 @@
     {"type":"Generic API Key Assignment","confidence":"medium","publicByDesign":false,"location":"html","masked":"api-ke********************VPD\""}
   ],
   "real:aws-key-id-in-a-bare-credential-query-parameter-is-not-presigned": [
+    {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"html","masked":"AKIAR5**********4DED","extra":{"accountId":"132095949854","prefix":"AKIA"}},
+    {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"html","masked":"aws_se********************rQc\""},
     {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"inline-script","masked":"AKIAR5**********4DED","extra":{"accountId":"132095949854","prefix":"AKIA"}},
     {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"aws_se********************rQc\""}
   ],
@@ -5508,10 +5520,14 @@
     {"type":"Supabase Service Role JWT","confidence":"high","publicByDesign":false,"location":"inline-script","masked":"eyJhbG********************FLOM","extra":{"issuer":"supabase","role":"service_role","projectRef":"hnyzgrgburgxtcxfvfku","expiresAt":"2033-05-18T03:33:20.000Z","expired":false}}
   ],
   "probe:aws-key-id-outside-base32-is-medium": [
+    {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"html","masked":"AKIA01**********R3XQ","extra":{"accountId":"undecodable","prefix":"AKIA"}},
+    {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"html","masked":"aws_se********************Phl\""},
     {"type":"AWS Access Key ID","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"AKIA01**********R3XQ","extra":{"accountId":"undecodable","prefix":"AKIA"}},
     {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"aws_se********************Phl\""}
   ],
   "probe:aws-key-id-in-base32-is-high": [
+    {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"html","masked":"AKIA3S**********OAEA","extra":{"accountId":"796088339657","prefix":"AKIA"}},
+    {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"html","masked":"aws_se********************n6s\""},
     {"type":"AWS Access Key ID","confidence":"high","publicByDesign":false,"location":"inline-script","masked":"AKIA3S**********OAEA","extra":{"accountId":"796088339657","prefix":"AKIA"}},
     {"type":"AWS Secret Access Key","confidence":"medium","publicByDesign":false,"location":"inline-script","masked":"aws_se********************n6s\""}
   ],
