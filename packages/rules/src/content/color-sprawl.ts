@@ -520,7 +520,12 @@ export const colorSprawlRule: Rule = {
     } else {
       const pages = ctx.site?.pages ?? [];
       if (pages.length === 0) return { checks: [skip("No pages available for analysis")] };
-      for (const p of pages) accumulate(rollup, p.url, extractColorUsage(p.parsed?.document));
+      for (const p of pages) {
+        // A bodiless 4xx/5xx page joins site.pages as EMPTY_PARSED_PAGE (no document). The streaming
+        // path's page count (page_features) leaves it out, so this one does too.
+        if (!p.parsed?.document) continue;
+        accumulate(rollup, p.url, extractColorUsage(p.parsed.document));
+      }
       pageCount = rollup.pageCount;
     }
     return { checks: buildChecks(rollup, pageCount, opts.max_redundant) };
