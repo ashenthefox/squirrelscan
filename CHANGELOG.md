@@ -17,10 +17,6 @@ How it works:
   `bun run changelog` prints them as the next release's section, and the release bump PR
   assembles them into a new `## vX.Y.Z` section and deletes them.
 
-### Changed
-
-- Script-heavy pages audit faster (squirrelscan/repo#1864): each inline script's text is read once per rule. `security/leaked-secrets` no longer scans every inline script a second time inside the page's HTML, which takes its per-page cost on a 1 MB storefront page from about 32 to 17 ms. A value in an inline script is reported only at `inline-script` (a public Shopify token on a Shopify page used to show as `html`), and `meta.occurrences` no longer lists a duplicate `html` entry for it. `a11y/skip-link` and `perf/js-libraries` no longer serialise or search the whole page for what they already read; their results are unchanged.
-
 ## v0.0.183 (2026-11-17)
 
 Four new probing security rules check what a site hands to anyone who asks: open JSON APIs, sensitive JSON fields, exposed files such as `.env` and `.git`, and auth endpoints that leak the user record. Four more catch mixed locale conventions, inconsistent terminology, copy whose own date has passed and broken byline conventions. Large audits peak at about half the memory, and a probe that never got an answer is now reported as not checked instead of clean. This release adds 8 rules: 336 rules on by default, 28 of them in Security, 29 in Content, 16 in E-E-A-T and 4 in Internationalization.
